@@ -1,98 +1,99 @@
 import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Link } from 'expo-router';
+import { Pressable, StyleSheet } from 'react-native';
 
-import { HelloWave } from '@/components/hello-wave';
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
 
 export default function HomeScreen() {
   return (
     <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
+      headerBackgroundColor={{ light: '#dddddd', dark: '#bfc7c7' }}
       headerImage={
         <Image
-          source={require('@/assets/images/partial-react-logo.png')}
+          source={require('@/assets/images/pngegg.png')}
           style={styles.reactLogo}
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
+      }
+    >
+      {/* Dashboard Title */}
+      <ThemedView style={styles.header}>
+        <ThemedText type="title">Sleepywears Dashboard</ThemedText>
+        <ThemedText type="subtitle">Overview</ThemedText>
       </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
+
+      {/* Stats */}
+      <ThemedView style={styles.statsRow}>
+        <DashboardCard title="Users" value="1,245" />
+        <DashboardCard title="Sales" value="₱32,400" />
+        <DashboardCard title="Errors" value="3" />
       </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
+
+      {/* Actions */}
+      <ThemedView style={styles.actions}>
+        <Link href="/modal" asChild>
+          <Pressable style={styles.actionButton}>
+            <ThemedText type="defaultSemiBold">Open Modal</ThemedText>
+          </Pressable>
         </Link>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
+        <Link href="/explore" asChild>
+          <Pressable style={styles.actionButtonSecondary}>
+            <ThemedText type="defaultSemiBold">Explore</ThemedText>
+          </Pressable>
+        </Link>
       </ThemedView>
     </ParallaxScrollView>
   );
 }
 
+/* Dashboard Card Component */
+function DashboardCard({ title, value }: { title: string; value: string }) {
+  return (
+    <ThemedView style={styles.card}>
+      <ThemedText type="subtitle">{title}</ThemedText>
+      <ThemedText type="title">{value}</ThemedText>
+    </ThemedView>
+  );
+}
+
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  header: {
+    gap: 4,
+    marginBottom: 16,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  statsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  card: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actions: {
+    gap: 12,
+  },
+  actionButton: {
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  actionButtonSecondary: {
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    opacity: 0.85,
   },
   reactLogo: {
     height: 178,
     width: 290,
+    position: 'absolute',
     bottom: 0,
     left: 0,
-    position: 'absolute',
   },
 });
