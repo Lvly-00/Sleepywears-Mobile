@@ -1,6 +1,5 @@
 import { router } from 'expo-router';
 import React from 'react';
-
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Avatar, Button, Divider, List, Surface, Text } from 'react-native-paper';
 
