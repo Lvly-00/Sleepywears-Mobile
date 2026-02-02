@@ -63,9 +63,39 @@ export default function RootLayout() {
 
           }} />
 
-            <Stack.Screen name="create-collection" options={{
+          <Stack.Screen name="create-collection" options={{
             presentation: 'fullScreenModal',
             title: 'New Collection',
+            headerStyle: {
+              backgroundColor: '#0A0B32',
+            },
+            headerTintColor: '#fff',
+            headerTitleStyle: {
+              fontWeight: 800,
+              fontSize: 30,
+            },
+            headerTitleAlign: 'left',
+
+          }} />
+
+          <Stack.Screen name="items" options={{
+            presentation: 'fullScreenModal',
+            title: 'Items',
+            headerStyle: {
+              backgroundColor: '#0A0B32',
+            },
+            headerTintColor: '#fff',
+            headerTitleStyle: {
+              fontWeight: 800,
+              fontSize: 30,
+            },
+            headerTitleAlign: 'left',
+
+          }} />
+
+          <Stack.Screen name="create-item" options={{
+            presentation: 'fullScreenModal',
+            title: 'New Item',
             headerStyle: {
               backgroundColor: '#0A0B32',
             },
