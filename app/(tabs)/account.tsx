@@ -1,4 +1,6 @@
+import { router } from 'expo-router';
 import React from 'react';
+
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Avatar, Button, Divider, List, Surface, Text } from 'react-native-paper';
 
@@ -6,7 +8,7 @@ export default function AccountScreen() {
   
   const handleLogout = () => {
     console.log('User logged out');
-    // router.replace('/login');
+    router.replace('/');
   };
 
   return (

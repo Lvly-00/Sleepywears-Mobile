@@ -18,6 +18,22 @@ export default function RootLayout() {
 
       <ThemeProvider value={colorScheme === 'light' ? DarkTheme : DefaultTheme}>
         <Stack>
+          <Stack.Screen
+            name="index"
+            options={{ headerShown: false }} // Usually login has no header
+          />
+
+          <Stack.Screen
+            name="forgot-password"
+            options={{ headerShown: false }} // Usually login has no header
+          />
+
+           <Stack.Screen
+            name="reset-password"
+            options={{ headerShown: false }} // Usually login has no header
+          />
+
+
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 
           <Stack.Screen name="create-order" options={{
