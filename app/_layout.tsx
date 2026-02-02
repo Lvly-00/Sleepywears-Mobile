@@ -31,8 +31,18 @@ export default function RootLayout() {
             },
             headerTitleAlign: 'left',
           }} />
-          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-        </Stack>
+          <Stack.Screen name="confirm-order" options={{
+            presentation: 'card', title: 'Confirm Order',
+            headerStyle: {
+              backgroundColor: '#0A0B32',
+            },
+            headerTintColor: '#fff',
+            headerTitleStyle: {
+              fontWeight: 800,
+              fontSize: 30,
+            },
+            headerTitleAlign: 'left',
+          }} />        </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>
     </PaperProvider>
