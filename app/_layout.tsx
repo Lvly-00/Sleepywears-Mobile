@@ -19,6 +19,7 @@ export default function RootLayout() {
       <ThemeProvider value={colorScheme === 'light' ? DarkTheme : DefaultTheme}>
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+
           <Stack.Screen name="create-order" options={{
             presentation: 'card', title: 'Create Order',
             headerStyle: {
@@ -31,6 +32,7 @@ export default function RootLayout() {
             },
             headerTitleAlign: 'left',
           }} />
+
           <Stack.Screen name="confirm-order" options={{
             presentation: 'card', title: 'Confirm Order',
             headerStyle: {
@@ -42,7 +44,40 @@ export default function RootLayout() {
               fontSize: 30,
             },
             headerTitleAlign: 'left',
-          }} />        </Stack>
+          }} />
+
+          <Stack.Screen name="invoice" options={{
+            presentation: 'fullScreenModal',
+            title: 'Invoice',
+            headerLeft: () => null,
+            headerBackVisible: false,
+            headerStyle: {
+              backgroundColor: '#0A0B32',
+            },
+            headerTintColor: '#fff',
+            headerTitleStyle: {
+              fontWeight: 800,
+              fontSize: 30,
+            },
+            headerTitleAlign: 'left',
+
+          }} />
+
+            <Stack.Screen name="create-collection" options={{
+            presentation: 'fullScreenModal',
+            title: 'New Collection',
+            headerStyle: {
+              backgroundColor: '#0A0B32',
+            },
+            headerTintColor: '#fff',
+            headerTitleStyle: {
+              fontWeight: 800,
+              fontSize: 30,
+            },
+            headerTitleAlign: 'left',
+
+          }} />
+        </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>
     </PaperProvider>

@@ -23,7 +23,7 @@ export default function ConfirmOrderScreen() {
 
             // 3. Navigate after user sees the success message
             setTimeout(() => {
-                router.push('/orders');
+                router.replace('/invoice');
             }, 2000);
         }, 2000);
     };
@@ -46,7 +46,7 @@ export default function ConfirmOrderScreen() {
                     contentContainerStyle={styles.loadingModalContainer}
                 >
                     <ActivityIndicator animating={true} color="#0A0B32" size="large" />
-                    <Text style={styles.loadingText}>Generating Order...</Text>
+                    <Text style={styles.loadingText}>Generating Invoice...</Text>
                 </Modal>
 
                 {/* --- CANCELLATION MODAL --- */}

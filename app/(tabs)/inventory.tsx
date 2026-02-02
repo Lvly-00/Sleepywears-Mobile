@@ -1,12 +1,13 @@
 import FabScreenWrapper from '@/components/ui/FabScreenWrapper';
+import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 export default function InventoryScreen() {
 
     const handleAddInventory = () => {
-        console.log('New Inventory Button Pressed');
-        // You can add navigation here: router.push('/create-inventory')
+        console.log('New Collection Button Pressed');
+        router.push('/create-collection');
     };
 
     return (
