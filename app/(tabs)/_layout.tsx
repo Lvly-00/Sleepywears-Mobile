@@ -52,6 +52,7 @@ export default function TabLayout() {
           }}
           style={{
             backgroundColor: '#0A0B32'
+            
 
           }}
           onTabPress={({ route, preventDefault }) => {

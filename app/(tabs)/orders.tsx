@@ -1,12 +1,14 @@
 import FabScreenWrapper from '@/components/ui/FabScreenWrapper';
+import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+
 
 export default function OrdersScreen() {
 
     const handleAddOrder = () => {
         console.log('New Order Button Pressed');
-        // You can add navigation here: router.push('/create-order')
+        router.push('/create-order');
     };
 
     return (
@@ -14,7 +16,7 @@ export default function OrdersScreen() {
             fabLabel="New Order"
             fabIcon="cart-plus"
             onFabPress={handleAddOrder}
-            fabBackgroundColor="#1C4D8D" // This will override the dark blue
+            fabBackgroundColor="#1C4D8D"
             fabTextColor="#ffffff"
         >
             {/* Content of your Orders Screen */}

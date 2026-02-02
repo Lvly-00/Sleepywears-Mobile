@@ -19,6 +19,18 @@ export default function RootLayout() {
       <ThemeProvider value={colorScheme === 'light' ? DarkTheme : DefaultTheme}>
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="create-order" options={{
+            presentation: 'card', title: 'Create Order',
+            headerStyle: {
+              backgroundColor: '#0A0B32',
+            },
+            headerTintColor: '#fff',
+            headerTitleStyle: {
+              fontWeight: 800,
+              fontSize: 30,
+            },
+            headerTitleAlign: 'left',
+          }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
         <StatusBar style="auto" />
