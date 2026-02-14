@@ -1,20 +1,20 @@
 import * as SecureStore from 'expo-secure-store';
 import api from './api';
 
-
 export const loginUser = async (email, password) => {
     try {
-        const response = await api.post('/login', { email, password });
-        
-        // response.data has { access_token, token_type, user }
-        const { access_token, user } = response.data;
+        const response = await api.post("/login", { email, password });
+        const token = response.data.access_token;
 
-        return { user, token: access_token };
+        // Save token securely for biometric login
+        await SecureStore.setItemAsync("access_token", token);
+        await SecureStore.setItemAsync("email", email);
+
+        return response.data.user;
     } catch (error) {
         throw error;
     }
 };
-
 
 export const logoutUser = async () => {
     try {
