@@ -1,39 +1,46 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
+import { loginUser } from '../services/authService';
 
 export default function LoginScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [hidePassword, setHidePassword] = useState(true);
 
-    const handleLogin = () => {
-        // Perform auth logic here
-        console.log('Login Pressed');
+    const handleLogin = async () => {
+        try {
+            setLoading(true);
 
-        // Use replace so the user cannot go back to the login screen
-        router.replace('/(tabs)/dashboard');
+            await loginUser(email, password);
+
+            router.replace('/(tabs)/dashboard');
+        } catch (error) {
+            console.log(error?.response?.data);
+
+            Alert.alert(
+                "Login Failed",
+                error?.response?.data?.message || "Invalid credentials"
+            );
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleForgotPassword = () => {
-        // Perform auth logic here
-        console.log('Forgot Password Pressed');
-
-        // Use replace so the user cannot go back to the login screen
         router.push('/forgot-password');
     };
 
     return (
         <View style={styles.container}>
             <View style={styles.logoContainer}>
-                {/* <Image 
-          source={require('../assets/images/Logo.png')} 
-          style={styles.logo} 
-        /> */}
                 <Text style={styles.brandName}>SLEEPYWEARS</Text>
             </View>
 
             <View style={styles.form}>
+                {/* Email Input */}
                 <TextInput
                     label="Email"
                     value={email}
@@ -41,29 +48,45 @@ export default function LoginScreen() {
                     mode="outlined"
                     activeOutlineColor="#0A0B32"
                     style={styles.input}
+                    textColor="#000" // black text
                 />
+
+                {/* Password Input */}
                 <TextInput
                     label="Password"
                     value={password}
                     onChangeText={setPassword}
                     mode="outlined"
-                    secureTextEntry
+                    secureTextEntry={hidePassword}
                     activeOutlineColor="#0A0B32"
                     style={styles.input}
+                    textColor="#000" // black text
+                    right={
+                        <TextInput.Icon
+                            icon={hidePassword ? 'eye-off' : 'eye'}
+                            onPress={() => setHidePassword(!hidePassword)}
+                        />
+                    }
                 />
 
+                {/* Login Button */}
                 <Button
                     mode="contained"
                     onPress={handleLogin}
+                    loading={loading}
+                    disabled={loading}
                     style={styles.loginButton}
                     labelStyle={styles.buttonLabel}
                 >
                     <Text style={styles.loginText}>Login</Text>
                 </Button>
 
-                <Text style={styles.forgotText}
+                <Text
+                    style={styles.forgotText}
                     onPress={handleForgotPassword}
-                >Forgot Password?</Text>
+                >
+                    Forgot Password?
+                </Text>
             </View>
         </View>
     );
@@ -79,11 +102,6 @@ const styles = StyleSheet.create({
     logoContainer: {
         alignItems: 'center',
         marginBottom: 50,
-    },
-    logo: {
-        width: 120,
-        height: 120,
-        resizeMode: 'contain',
     },
     brandName: {
         fontFamily: 'LeagueSpartan-Bold',
@@ -117,5 +135,4 @@ const styles = StyleSheet.create({
     loginText: {
         color: '#FFFFFF',
     },
-
 });
