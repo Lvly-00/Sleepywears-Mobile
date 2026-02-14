@@ -1,91 +1,128 @@
 import { router } from 'expo-router';
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { TouchableRipple } from 'react-native-paper'; // 1. Import TouchableRipple
+import React, { useCallback, useEffect, useState } from 'react';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, TouchableRipple } from 'react-native-paper';
 import FabScreenWrapper from '../../components/ui/FabScreenWrapper';
+import api from "../../services/api";
 
 export default function InventoryScreen() {
+    const [collections, setCollections] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
-    const handleAddInventory = () => {
-        router.push('/screens/create-collection');
+    const sortCollections = (list: any[]) => {
+        const order: any = { Active: 0, "Sold Out": 1 };
+        return [...list].sort((a, b) => order[a.status] - order[b.status]);
     };
 
-    // 2. Navigation function for clicking an item
+    const fetchCollections = async () => {
+        try {
+            const res = await api.get("/collections");
+            const data = Array.isArray(res.data?.data) ? res.data.data : [];
+            setCollections(sortCollections(data));
+        } catch (err) {
+            console.error("Fetch error:", err);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchCollections();
+    }, []);
+
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        fetchCollections();
+    }, []);
+
     const handleItemPress = (id: number) => {
-        console.log(`Navigating to Collection ${id}`);
-        // Redirecting and passing the ID as a parameter
         router.push({
             pathname: '/screens/items',
             params: { collectionId: id }
         });
     };
 
+    const renderItem = ({ item }: { item: any }) => (
+        <TouchableRipple
+            onPress={() => handleItemPress(item.id)}
+            rippleColor="rgba(10, 11, 50, .1)"
+            style={styles.orderItem}
+        >
+            <View style={styles.itemContent}>
+                <View style={{ flex: 1 }}>
+                    <Text style={styles.orderText}>{item.name || "Unnamed"}</Text>
+                    <Text style={styles.subText}>
+                        Stock: {Array.isArray(item.items) ? item.items.filter((i: any) => i.status === "Available").length : 0} | 
+                        Qty: {item.qty || 0}
+                    </Text>
+                </View>
+                
+                <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={[
+                        styles.orderStatus, 
+                        { color: item.status === 'Active' ? '#276D58' : '#7A7A7A' }
+                    ]}>
+                        {item.status}
+                    </Text>
+                    <Text style={styles.priceText}>
+                        ₱{new Intl.NumberFormat("en-PH").format(Math.floor(item.capital || 0))}
+                    </Text>
+                </View>
+            </View>
+        </TouchableRipple>
+    );
+
     return (
         <FabScreenWrapper
             fabLabel="New Collection"
             fabIcon="layers-plus"
-            onFabPress={handleAddInventory}
-            fabBackgroundColor="#1C4D8D"
+            onFabPress={() => router.push('/screens/create-collection')}
+            fabBackgroundColor="#AB8262"
             fabTextColor="#ffffff"
         >
             <View style={styles.container}>
-                <Text style={styles.heading}>Collection</Text>
 
-                {[...Array(15)].map((_, i) => (
-                    // 3. Wrap the item in TouchableRipple
-                    <TouchableRipple
-                        key={i}
-                        onPress={() => handleItemPress(i + 1)}
-                        rippleColor="rgba(10, 11, 50, .1)" // Custom ripple color
-                        style={styles.orderItem}
-                    >
-                        {/* 4. Keep your content inside a View (no padding on TouchableRipple itself) */}
-                        <View style={styles.itemContent}>
-                            <Text style={styles.orderText}>Collection #{i + 1}</Text>
-                            <Text style={styles.orderStatus}>In Stock</Text>
-                        </View>
-                    </TouchableRipple>
-                ))}
+                {loading ? (
+                    <ActivityIndicator style={{ marginTop: 50 }} color="#0A0B32" />
+                ) : (
+                    <FlatList
+                        data={collections}
+                        keyExtractor={(item) => item.id.toString()}
+                        renderItem={renderItem}
+                        refreshControl={
+                            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                        }
+                        ListEmptyComponent={
+                            <Text style={styles.emptyText}>No collections found.</Text>
+                        }
+                        contentContainerStyle={{ paddingBottom: 100 }}
+                    />
+                )}
             </View>
         </FabScreenWrapper>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        padding: 20,
-    },
-    heading: {
-        fontSize: 28,
-        fontFamily: 'LeagueSpartan-Bold',
-        marginBottom: 20,
-        color: '#0A0B32',
-    },
+    container: { padding: 20, flex: 1 },
+    heading: { fontSize: 28, fontFamily: 'LeagueSpartan-Bold', marginBottom: 20, color: '#0A0B32' },
     orderItem: {
         backgroundColor: '#fff',
         borderRadius: 12,
         marginBottom: 12,
-        // Elevation and shadow must stay on the container
         elevation: 2,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.1,
         shadowRadius: 2,
-        overflow: 'hidden', // Required to keep the ripple inside the rounded corners
+        overflow: 'hidden',
     },
-    itemContent: {
-        padding: 16, // Move padding here so the ripple covers the whole area
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    orderText: {
-        fontFamily: 'LeagueSpartan',
-        fontSize: 18,
-    },
-    orderStatus: {
-        fontFamily: 'LeagueSpartan',
-        color: 'orange',
-        fontWeight: '600',
-    },
+    itemContent: { padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    orderText: { fontFamily: 'LeagueSpartan-Bold', fontSize: 18, color: '#0A0B32' },
+    subText: { fontFamily: 'LeagueSpartan', fontSize: 14, color: '#666' },
+    orderStatus: { fontFamily: 'LeagueSpartan-Bold', fontSize: 14, textTransform: 'uppercase' },
+    priceText: { fontFamily: 'LeagueSpartan', fontSize: 14, color: '#AB8262' },
+    emptyText: { textAlign: 'center', marginTop: 50, fontFamily: 'LeagueSpartan', color: '#7A7A7A', fontSize: 18 }
 });
