@@ -1,9 +1,9 @@
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { PaperProvider } from 'react-native-paper';
 import 'react-native-reanimated';
+import { useColorScheme } from '../../hooks/use-color-scheme';
 
 
 export const unstable_settings = {
@@ -20,17 +20,17 @@ export default function RootLayout() {
         <Stack>
           <Stack.Screen
             name="index"
-            options={{ headerShown: false }} // Usually login has no header
+            options={{ headerShown: false }} 
           />
 
           <Stack.Screen
             name="forgot-password"
-            options={{ headerShown: false }} // Usually login has no header
+            options={{ headerShown: false }} 
           />
 
            <Stack.Screen
             name="reset-password"
-            options={{ headerShown: false }} // Usually login has no header
+            options={{ headerShown: false }} 
           />
 
 

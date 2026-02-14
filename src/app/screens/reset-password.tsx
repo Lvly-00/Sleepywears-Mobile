@@ -12,7 +12,7 @@ export default function ResetPasswordScreen() {
         console.log('Forgot Password Pressed');
 
         // Use replace so the user cannot go back to the login screen
-        router.push('/');
+        router.push('/screens');
     };
 
     return (

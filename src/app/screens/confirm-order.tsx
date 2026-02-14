@@ -23,7 +23,7 @@ export default function ConfirmOrderScreen() {
 
             // 3. Navigate after user sees the success message
             setTimeout(() => {
-                router.replace('/invoice');
+                router.replace('/screens/invoice');
             }, 2000);
         }, 2000);
     };

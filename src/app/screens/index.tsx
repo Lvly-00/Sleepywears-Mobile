@@ -6,7 +6,7 @@ import React, { useEffect, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
 
-import { loginUser, logoutUser } from '../services/authService';
+import { loginUser, logoutUser } from '../../services/authService';
 
 export default function LoginScreen() {
     const [email, setEmail] = useState('');
@@ -146,7 +146,7 @@ export default function LoginScreen() {
                 {/* Forgot Password */}
                 <Text
                     style={styles.forgotText}
-                    onPress={() => router.push('/forgot-password')}
+                    onPress={() => router.push('/screens/forgot-password')}
                 >
                     Forgot Password?
                 </Text>

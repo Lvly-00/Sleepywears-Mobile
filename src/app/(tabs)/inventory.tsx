@@ -1,13 +1,13 @@
-import FabScreenWrapper from '@/components/ui/FabScreenWrapper';
 import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { TouchableRipple } from 'react-native-paper'; // 1. Import TouchableRipple
+import FabScreenWrapper from '../../components/ui/FabScreenWrapper';
 
 export default function InventoryScreen() {
 
     const handleAddInventory = () => {
-        router.push('/create-collection');
+        router.push('/screens/create-collection');
     };
 
     // 2. Navigation function for clicking an item
@@ -15,7 +15,7 @@ export default function InventoryScreen() {
         console.log(`Navigating to Collection ${id}`);
         // Redirecting and passing the ID as a parameter
         router.push({
-            pathname: '/items',
+            pathname: '/screens/items',
             params: { collectionId: id }
         });
     };

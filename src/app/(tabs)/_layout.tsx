@@ -1,9 +1,9 @@
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
 import { CommonActions } from '@react-navigation/native';
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Image } from 'react-native';
+import { useColorScheme } from '../../hooks/use-color-scheme';
 
 import { BottomNavigation } from 'react-native-paper';
 

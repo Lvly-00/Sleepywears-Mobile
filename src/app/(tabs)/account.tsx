@@ -7,7 +7,7 @@ export default function AccountScreen() {
   
   const handleLogout = () => {
     console.log('User logged out');
-    router.replace('/');
+    router.replace('/screens');
   };
 
   return (

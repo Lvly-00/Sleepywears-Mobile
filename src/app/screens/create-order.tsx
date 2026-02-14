@@ -6,7 +6,7 @@ export default function CreateOrderScreen() {
 
     const placeOrder = () => {
         console.log('Order Placed');
-        router.push('/confirm-order');
+        router.push('/screens/confirm-order');
     };
 
     return (
