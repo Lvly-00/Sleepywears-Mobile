@@ -3,7 +3,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { PaperProvider } from 'react-native-paper';
 import 'react-native-reanimated';
-import { useColorScheme } from '../../hooks/use-color-scheme';
+import { useColorScheme } from '../hooks/use-color-scheme';
 
 
 export const unstable_settings = {
@@ -19,17 +19,17 @@ export default function RootLayout() {
       <ThemeProvider value={colorScheme === 'light' ? DarkTheme : DefaultTheme}>
         <Stack>
           <Stack.Screen
-            name="index"
+            name="screens/index"
             options={{ headerShown: false }} 
           />
 
           <Stack.Screen
-            name="forgot-password"
+            name="screens/forgot-password"
             options={{ headerShown: false }} 
           />
 
            <Stack.Screen
-            name="reset-password"
+            name="screens/reset-password"
             options={{ headerShown: false }} 
           />
 
@@ -49,7 +49,7 @@ export default function RootLayout() {
             headerTitleAlign: 'left',
           }} />
 
-          <Stack.Screen name="confirm-order" options={{
+          <Stack.Screen name="screens/confirm-order" options={{
             presentation: 'card', title: 'Confirm Order',
             headerStyle: {
               backgroundColor: '#0A0B32',
@@ -62,7 +62,7 @@ export default function RootLayout() {
             headerTitleAlign: 'left',
           }} />
 
-          <Stack.Screen name="invoice" options={{
+          <Stack.Screen name="screens/invoice" options={{
             presentation: 'fullScreenModal',
             title: 'Invoice',
             headerLeft: () => null,
@@ -79,7 +79,7 @@ export default function RootLayout() {
 
           }} />
 
-          <Stack.Screen name="create-collection" options={{
+          <Stack.Screen name="screens/create-collection" options={{
             presentation: 'fullScreenModal',
             title: 'New Collection',
             headerStyle: {
@@ -94,7 +94,7 @@ export default function RootLayout() {
 
           }} />
 
-          <Stack.Screen name="items" options={{
+          <Stack.Screen name="screens/items" options={{
             presentation: 'fullScreenModal',
             title: 'Items',
             headerStyle: {
@@ -109,7 +109,7 @@ export default function RootLayout() {
 
           }} />
 
-          <Stack.Screen name="create-item" options={{
+          <Stack.Screen name="screens/create-item" options={{
             presentation: 'fullScreenModal',
             title: 'New Item',
             headerStyle: {

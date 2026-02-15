@@ -55,15 +55,12 @@ export default function InventoryAddScreen() {
 
             await api.post("/collections", payload);
 
-            // 2. Show Success Notification
             setVisible(true);
 
-            // 3. Redirect to Inventory List
             setTimeout(() => {
                 setVisible(false);
 
-                // If using Expo Router, replace the route so user can't "Go Back" to the form
-                // Replace '/inventory' with your actual route path
+             
                 router.replace('/(tabs)/inventory');
             }, 1500);
 
