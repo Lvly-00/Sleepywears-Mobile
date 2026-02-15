@@ -1,43 +1,53 @@
 import { router } from 'expo-router';
-import * as React from 'react';
+import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text } from 'react-native';
 import { ActivityIndicator, Button, Snackbar, TextInput } from 'react-native-paper';
-import api from "../../services/api";
+import api from '../services/api';
 
-export default function InventoryAddScreen() {
-    const [name, setName] = React.useState("");
-    const [capital, setCapital] = React.useState("");
-    const [date, setDate] = React.useState(new Date().toISOString().split('T')[0]);
+type CollectionFormProps = {
+    mode: 'create' | 'edit';
+    initialData?: any;
+};
 
-    const [loading, setLoading] = React.useState(false);
-    const [errors, setErrors] = React.useState({ name: "", capital: "", date: "" });
-    const [visible, setVisible] = React.useState(false);
 
-    // Formatter for Currency (Visual only)
-    const formatCurrency = (val: string) => {
-        const digits = val.replace(/\D/g, "");
-        if (!digits) return "";
-        return new Intl.NumberFormat("en-PH", {
-            style: "currency",
-            currency: "PHP",
+export default function CollectionForm({ mode, initialData }: CollectionFormProps) {
+    // Initialize state safely
+    // console.log("CollectionForm Props:", { mode, initialData });
+
+    const [name, setName] = useState(initialData?.name || '');
+    const [capital, setCapital] = useState(
+        initialData?.capital != null ? formatCurrency(String(initialData.capital)) : ''
+    );
+
+    const [date, setDate] = useState(initialData?.release_date || new Date().toISOString().split('T')[0]);
+
+    const [loading, setLoading] = useState(false);
+    const [errors, setErrors] = useState({ name: '', capital: '', date: '' });
+    const [visible, setVisible] = useState(false);
+
+    // Format number as currency
+    function formatCurrency(val: string) {
+        const digits = val.replace(/\D/g, '');
+        if (!digits) return '';
+        return new Intl.NumberFormat('en-PH', {
+            style: 'currency',
+            currency: 'PHP',
             minimumFractionDigits: 0,
         }).format(parseInt(digits));
-    };
+    }
 
-    const handleAddInventory = async () => {
-        // 1. Validation (Matches your web logic)
-        const newErrors = { name: "", capital: "", date: "" };
+    const handleSubmit = async () => {
+        const newErrors = { name: '', capital: '', date: '' };
         let isValid = true;
 
         if (!name.trim()) {
-            newErrors.name = "Collection number is required";
+            newErrors.name = 'Collection number is required';
             isValid = false;
         }
         if (!date) {
-            newErrors.date = "Release date is required";
+            newErrors.date = 'Release date is required';
             isValid = false;
         }
-
         if (!isValid) {
             setErrors(newErrors);
             return;
@@ -46,40 +56,41 @@ export default function InventoryAddScreen() {
         setLoading(true);
         try {
             const payload = {
-                // Remove non-digits to match your web logic for "Collection Number"
-                name: name.replace(/\D/g, ""),
+                name: name.replace(/\D/g, ''),
                 release_date: date,
-                // Clean currency symbols and commas
-                capital: capital.replace(/\D/g, "") || 0,
+                capital: capital.replace(/\D/g, '') || 0, // remove formatting for API
             };
 
-            await api.post("/collections", payload);
+            if (mode === 'create') {
+                await api.post('/collections', payload);
+            } else {
+                await api.put(`/collections/${initialData.id}`, payload);
+            }
 
             setVisible(true);
-
             setTimeout(() => {
                 setVisible(false);
-
-             
                 router.replace('/(tabs)/inventory');
             }, 1500);
-
         } catch (error: any) {
-            console.error("Submission Error:", error.response?.data || error.message);
+            console.error('Submission Error:', error.response?.data || error.message);
             if (error.response?.status === 422) {
                 const validationErrors = error.response.data.errors || {};
                 setErrors({
-                    name: validationErrors.name ? validationErrors.name[0] : "",
-                    capital: validationErrors.capital ? validationErrors.capital[0] : "",
-                    date: validationErrors.release_date ? validationErrors.release_date[0] : "",
+                    name: validationErrors.name ? validationErrors.name[0] : '',
+                    capital: validationErrors.capital ? validationErrors.capital[0] : '',
+                    date: validationErrors.release_date ? validationErrors.release_date[0] : '',
                 });
             } else {
-                alert("An error occurred. Please try again.");
+                alert('An error occurred. Please try again.');
             }
         } finally {
             setLoading(false);
         }
     };
+
+    console.log("CollectionForm Props:", { initialData, name, capital, date });
+
 
     return (
         <KeyboardAvoidingView
@@ -87,7 +98,7 @@ export default function InventoryAddScreen() {
             style={styles.container}
         >
             <ScrollView style={{ flex: 1 }}>
-                <Text style={styles.heading}>New Collection</Text>
+                <Text style={styles.heading}>{mode === 'create' ? 'New Collection' : 'Edit Collection'}</Text>
 
                 <TextInput
                     label="Collection Number"
@@ -95,15 +106,14 @@ export default function InventoryAddScreen() {
                     mode="outlined"
                     keyboardType="numeric"
                     onChangeText={(val) => {
-                        setName(val.replace(/\D/g, ""));
-                        setErrors(prev => ({ ...prev, name: "" }));
+                        setName(val.replace(/\D/g, ''));
+                        setErrors((prev) => ({ ...prev, name: '' }));
                     }}
                     error={!!errors.name}
                     style={styles.input}
                     outlineColor="#AB8262"
                     activeOutlineColor="#0A0B32"
                     textColor="#000"
-
                 />
 
                 <TextInput
@@ -117,7 +127,6 @@ export default function InventoryAddScreen() {
                     outlineColor="#AB8262"
                     activeOutlineColor="#0A0B32"
                     textColor="#000"
-
                 />
 
                 <TextInput
@@ -130,18 +139,17 @@ export default function InventoryAddScreen() {
                     outlineColor="#AB8262"
                     activeOutlineColor="#0A0B32"
                     textColor="#000"
-
                 />
 
                 <Button
                     mode="contained"
-                    onPress={handleAddInventory}
+                    onPress={handleSubmit}
                     disabled={loading}
                     style={styles.placeOrderButton}
                     labelStyle={styles.buttonLabel}
                     contentStyle={styles.buttonContent}
                 >
-                    {loading ? <ActivityIndicator color="#fff" /> : "Add Collection"}
+                    {loading ? <ActivityIndicator color="#fff" /> : mode === 'create' ? 'Add Collection' : 'Update Collection'}
                 </Button>
             </ScrollView>
 
@@ -151,7 +159,9 @@ export default function InventoryAddScreen() {
                 duration={2000}
                 style={styles.snackbar}
             >
-                <Text style={styles.snackbarText}>Collection "{name}" added successfully!</Text>
+                <Text style={styles.snackbarText}>
+                    {mode === 'create' ? `Collection "${name}" added!` : `Collection "${name}" updated!`}
+                </Text>
             </Snackbar>
         </KeyboardAvoidingView>
     );
@@ -165,5 +175,5 @@ const styles = StyleSheet.create({
     buttonContent: { height: 50 },
     buttonLabel: { fontFamily: 'LeagueSpartan-Bold', fontSize: 18, color: '#FFFFFF' },
     snackbar: { backgroundColor: '#2e7d32', bottom: 30 },
-    snackbarText: { fontFamily: 'LeagueSpartan', color: '#fff' }
+    snackbarText: { fontFamily: 'LeagueSpartan', color: '#fff' },
 });
