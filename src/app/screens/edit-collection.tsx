@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
-import CollectionForm from "../../components/CollectionForm";
+import CollectionForm from "../../components/collection-form";
 import api from "../../services/api";
 
 export default function EditCollectionScreen() {

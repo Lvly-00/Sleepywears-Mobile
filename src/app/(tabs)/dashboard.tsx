@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Avatar, Card, IconButton, Surface, Text } from 'react-native-paper';
-import FabScreenWrapper from '../../components/ui/FabScreenWrapper';
+import FabScreenWrapper from '../../components/ui/fab-screen-wrapper';
 
 export default function DashboardScreen() {
   

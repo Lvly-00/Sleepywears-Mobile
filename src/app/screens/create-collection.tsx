@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import CollectionForm from '../../components/CollectionForm';
+import CollectionForm from '../../components/collection-form';
 
 export default function CreateCollectionScreen() {
   return (

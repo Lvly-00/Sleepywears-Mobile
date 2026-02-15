@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import FabScreenWrapper from '../../components/ui/FabScreenWrapper';
+import FabScreenWrapper from '../../components/ui/fab-screen-wrapper';
 
 
 export default function OrdersScreen() {

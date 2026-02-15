@@ -2,8 +2,8 @@ import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { ActivityIndicator } from 'react-native-paper';
-import FabScreenWrapper from '../../components/ui/FabScreenWrapper';
-import SwipeableCard from '../../components/ui/SwipeableCard';
+import FabScreenWrapper from '../../components/ui/fab-screen-wrapper';
+import SwipeableCard from '../../components/ui/swipeable-card';
 import api from '../../services/api';
 
 export default function InventoryScreen() {
