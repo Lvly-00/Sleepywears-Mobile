@@ -39,7 +39,7 @@ export default function RootLayout() {
 
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 
-            <Stack.Screen name="create-order" options={{
+            <Stack.Screen name="screens/create-order" options={{
               presentation: 'card', title: 'Create Order',
               headerStyle: {
                 backgroundColor: '#0A0B32',
