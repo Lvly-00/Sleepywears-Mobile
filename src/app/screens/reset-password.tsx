@@ -1,61 +1,172 @@
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Button, Text, TextInput } from 'react-native-paper';
+import { Alert, Dimensions, Image, ImageBackground, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Button, HelperText, Text, TextInput } from 'react-native-paper';
+
+const { width } = Dimensions.get('window');
+const ERROR_COLOR = '#9E2626';
 
 export default function ResetPasswordScreen() {
-    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    // Visibility states
+    const [hidePassword, setHidePassword] = useState(true);
+    const [hideConfirmPassword, setHideConfirmPassword] = useState(true);
+
+    // Error states
+    const [passwordError, setPasswordError] = useState('');
+    const [confirmPasswordError, setConfirmPasswordError] = useState('');
+
+    // Validation Regex (8 chars, 1 number, 1 special char)
+    const validatePassword = (text: string) => {
+        const passwordRegex = /^(?=.*[0-9])(?=.*[!@#$%^&*(),.?":{}|<>])[a-zA-Z0-9!@#$%^&*(),.?":{}|<>]{8,}$/;
+        return passwordRegex.test(text);
+    };
 
     const handleResetPassword = () => {
-        // Perform auth logic here
-        console.log('Forgot Password Pressed');
+        setPasswordError('');
+        setConfirmPasswordError('');
 
-        // Use replace so the user cannot go back to the login screen
-        router.push('/screens');
+        let isValid = true;
+
+        // 1. Validate Password Format
+        if (!validatePassword(password)) {
+            setPasswordError('Your password is incorrect. It must contain at least 8 characters, including one number and one special character.');
+            isValid = false;
+        }
+
+        // 2. Check if Match
+        if (password !== confirmPassword) {
+            setConfirmPasswordError('Passwords do not match.');
+            isValid = false;
+        }
+
+        if (!isValid) return;
+
+        setLoading(true);
+        // Simulate API call
+        setTimeout(() => {
+            setLoading(false);
+            Alert.alert('Success', 'Your password has been reset successfully.', [
+                { text: 'OK', onPress: () => router.replace('/screens') }
+            ]);
+        }, 1500);
     };
 
     return (
         <View style={styles.container}>
-            <View style={styles.logoContainer}>
-                {/* <Image 
-          source={require('../assets/images/Logo.png')} 
-          style={styles.logo} 
-        /> */}
-                <Text style={styles.brandName}>SLEEPYWEARS</Text>
-                <Text style={styles.brandName}>Reset Password</Text>
+            <StatusBar style="light" />
 
-            </View>
-
-            <View style={styles.form}>
-                <TextInput
-                    label="New Password"
-                    value={email}
-                    onChangeText={setEmail}
-                    mode="outlined"
-                    activeOutlineColor="#0A0B32"
-                    style={styles.input}
+            {/* 1. Header Section (Same as Login) */}
+            <ImageBackground
+                source={require('../../../assets/images/blue-banner.png')}
+                style={styles.headerBackground}
+                resizeMode="cover"
+            >
+                <Image
+                    source={require('../../../assets/images/logo-white.png')}
+                    style={styles.logoImage}
+                    resizeMode="cover"
                 />
-                <TextInput
-                    label="Confirm Password"
-                    value={password}
-                    onChangeText={setPassword}
-                    mode="outlined"
-                    secureTextEntry
-                    activeOutlineColor="#0A0B32"
-                    style={styles.input}
-                />
+            </ImageBackground>
 
-                <Button
-                    mode="contained"
-                    onPress={handleResetPassword}
-                    style={styles.loginButton}
-                    labelStyle={styles.buttonLabel}
-                >
-                    <Text
-                     style={styles.loginText}>Reset Password</Text>
-                </Button>
+            <View style={styles.content}>
+                <Text style={styles.loginTitle}>RESET </Text>
+                <Text style={styles.loginTitle}>PASSWORD</Text>
 
+
+                <View style={styles.form}>
+                    {/* New Password Input */}
+                    <TextInput
+                        label="New Password"
+                        value={password}
+                        onChangeText={(text) => {
+                            setPassword(text);
+                            if (passwordError) setPasswordError('');
+                        }}
+                        mode="flat"
+                        secureTextEntry={hidePassword}
+                        activeUnderlineColor="#0D0F66"
+                        underlineColor="#0D0F66"
+                        error={!!passwordError}
+                        style={styles.input}
+                        textColor="#818181"
+                        theme={{
+                            colors: {
+                                onSurfaceVariant: '#0D0F66',
+                                error: ERROR_COLOR
+                            }
+                        }}
+                        right={
+                            <TextInput.Icon
+                                icon={hidePassword ? 'eye-off' : 'eye'}
+                                color={passwordError ? ERROR_COLOR : "#0D0F66"}
+                                onPress={() => setHidePassword(!hidePassword)}
+                            />
+                        }
+                    />
+                    <HelperText type="error" visible={!!passwordError} style={styles.helper}>
+                        {passwordError}
+                    </HelperText>
+
+                    {/* Confirm Password Input */}
+                    <TextInput
+                        label="Confirm Password"
+                        value={confirmPassword}
+                        onChangeText={(text) => {
+                            setConfirmPassword(text);
+                            if (confirmPasswordError) setConfirmPasswordError('');
+                        }}
+                        mode="flat"
+                        secureTextEntry={hideConfirmPassword}
+                        activeUnderlineColor="#0D0F66"
+                        underlineColor="#0D0F66"
+                        error={!!confirmPasswordError}
+                        style={styles.input}
+                        textColor="#818181"
+                        theme={{
+                            colors: {
+                                onSurfaceVariant: '#0D0F66',
+                                error: ERROR_COLOR
+                            }
+                        }}
+                        right={
+                            <TextInput.Icon
+                                icon={hideConfirmPassword ? 'eye-off' : 'eye'}
+                                color={confirmPasswordError ? ERROR_COLOR : "#0D0F66"}
+                                onPress={() => setHideConfirmPassword(!hideConfirmPassword)}
+                            />
+                        }
+                    />
+                    <HelperText type="error" visible={!!confirmPasswordError} style={styles.helper}>
+                        {confirmPasswordError}
+                    </HelperText>
+
+                    <TouchableOpacity
+                        onPress={() => router.replace('/screens')}
+                        style={styles.backToLoginContainer}
+                    >
+                        <Text style={styles.backToLoginText}>Back to Login</Text>
+                    </TouchableOpacity>
+
+                    {/* Reset Button */}
+                    <Button
+                        mode="contained"
+                        onPress={handleResetPassword}
+                        loading={loading}
+                        disabled={loading}
+                        style={styles.loginButton}
+                        contentStyle={styles.loginButtonContent}
+                        labelStyle={styles.buttonLabel}
+                    >
+                        Reset Password
+                    </Button>
+
+
+                </View>
             </View>
         </View>
     );
@@ -64,50 +175,67 @@ export default function ResetPasswordScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f3f3f3',
-        padding: 20,
+        backgroundColor: '#FFFFFF',
+    },
+    headerBackground: {
+        width: width,
+        height: width * 1,
         justifyContent: 'center',
-    },
-    logoContainer: {
         alignItems: 'center',
-        marginBottom: 50,
+        marginTop: -10,
+        marginBottom: -130,
     },
-    logo: {
-        width: 120,
-        height: 120,
-        resizeMode: 'contain',
+    logoImage: {
+        width: '75%',
+        height: 100,
+        marginTop: -110,
     },
-    brandName: {
-        fontFamily: 'LeagueSpartan-Bold',
-        fontSize: 32,
-        color: '#0A0B32',
-        marginTop: 10,
+    content: {
+        flex: 1,
+        paddingHorizontal: 40,
+        marginTop: -20,
+    },
+    loginTitle: {
+        fontSize: 40,
+        fontWeight: '700',
+        color: '#05083E',
     },
     form: {
         width: '100%',
     },
     input: {
-        marginBottom: 15,
-        backgroundColor: '#fff',
+        backgroundColor: 'transparent',
+        paddingHorizontal: 0,
+        fontSize: 16,
+    },
+    helper: {
+        paddingHorizontal: 0,
+        marginBottom: 10,
+        lineHeight: 14,
+        color: '#9E2626',
     },
     loginButton: {
-        backgroundColor: '#0A0B32',
-        paddingVertical: 5,
+        backgroundColor: '#0D0F66',
         borderRadius: 12,
-        marginTop: 10,
+        elevation: 0,
+        marginTop: 20,
+    },
+    loginButtonContent: {
+        height: 56,
     },
     buttonLabel: {
-        fontFamily: 'LeagueSpartan-Bold',
         fontSize: 18,
-    },
-    forgotText: {
-        textAlign: 'center',
-        marginTop: 20,
-        fontFamily: 'LeagueSpartan',
-        color: '#AB8262',
-    },
-    loginText: {
+        fontWeight: '700',
         color: '#FFFFFF',
+        textTransform: 'none',
     },
-
+    backToLoginContainer: {
+        alignItems: 'flex-end',
+        marginTop: 25,
+    },
+    backToLoginText: {
+        color: '#1D72D4',
+        fontSize: 14,
+        fontWeight: '500',
+    },
 });

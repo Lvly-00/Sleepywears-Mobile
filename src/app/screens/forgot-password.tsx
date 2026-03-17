@@ -69,14 +69,14 @@ export default function ForgotPasswordScreen() {
                         }}
                         mode="flat"
                         activeUnderlineColor="#0D0F66"
-                        underlineColor="#BDBDBD"
+                        underlineColor="#0D0F66"
                         error={!!emailError}
                         style={styles.input}
-                        textColor="#0D0F66"
+                        textColor="#818181"
                         autoCapitalize="none"
                         theme={{
                             colors: {
-                                onSurfaceVariant: '#818181',
+                                onSurfaceVariant: '#0D0F66',
                                 error: ERROR_COLOR
                             }
                         }}
@@ -144,7 +144,6 @@ const styles = StyleSheet.create({
         fontSize: 40, 
         fontWeight: '700',
         color: '#05083E',
-        marginBottom: 10,
     },
     instructionText: {
         fontSize: 14,

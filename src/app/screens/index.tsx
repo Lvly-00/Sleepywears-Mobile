@@ -138,14 +138,14 @@ export default function LoginScreen() {
                         }}
                         mode="flat"
                         activeUnderlineColor="#0D0F66"
-                        underlineColor="#BDBDBD"
+                        underlineColor="#0D0F66"
                         error={!!emailError}
                         style={styles.input}
-                        textColor="#0D0F66"
+                        textColor="#818181"
                         autoCapitalize="none"
                         theme={{
                             colors: {
-                                onSurfaceVariant: '#818181',
+                                onSurfaceVariant: '#0D0F66',
                                 error: ERROR_COLOR
                             }
                         }}
@@ -168,13 +168,13 @@ export default function LoginScreen() {
                         mode="flat"
                         secureTextEntry={hidePassword}
                         activeUnderlineColor="#0D0F66"
-                        underlineColor="#BDBDBD"
+                        underlineColor="#0D0F66"
                         error={!!passwordError}
                         style={styles.input}
-                        textColor="#0D0F66"
+                        textColor="#818181"
                         theme={{
                             colors: {
-                                onSurfaceVariant: '#818181',
+                                onSurfaceVariant: '#0D0F66',
                                 error: ERROR_COLOR
                             }
                         }}
@@ -259,6 +259,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 0,
         marginBottom: 5,
         lineHeight: 14,
+        color: '#9E2626',
     },
     forgotContainer: {
         alignSelf: 'flex-end',
