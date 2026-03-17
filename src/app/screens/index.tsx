@@ -1,12 +1,15 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import * as LocalAuthentication from 'expo-local-authentication';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
-import { Button, Text, TextInput } from 'react-native-paper';
+import { StatusBar } from 'expo-status-bar';
+import React, { useState } from 'react';
+import { Alert, Dimensions, Image, ImageBackground, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Button, HelperText, Text, TextInput } from 'react-native-paper';
 
-import { loginUser, logoutUser } from '../../services/authService';
+import { loginUser } from '../../services/authService';
+
+const { width } = Dimensions.get('window');
+
+const ERROR_COLOR = '#9E2626';
 
 export default function LoginScreen() {
     const [email, setEmail] = useState('');
@@ -14,145 +17,202 @@ export default function LoginScreen() {
     const [loading, setLoading] = useState(false);
     const [hidePassword, setHidePassword] = useState(true);
 
-    // ----- Auto Biometric Login on App Start -----
-    useEffect(() => {
-        (async () => {
-            const token = await SecureStore.getItemAsync('access_token');
-            if (token) {
-                await handleBiometricLogin();
-            }
-        })();
-    }, []);
+    const [emailError, setEmailError] = useState('');
+    const [passwordError, setPasswordError] = useState('');
 
-    // ----- Manual Login -----
+    const validateEmail = (text: string) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(text);
+    };
+
+    const validatePassword = (text: string) => {
+        return text.length >= 1; // Just check if they typed something
+    };
+
     const handleLogin = async () => {
+        console.log('--- Login Process Started ---');
+        console.log('Current Input:', { email, password: password ? '********' : 'empty' });
+
+        // Reset errors
+        setEmailError('');
+        setPasswordError('');
+
+        let isValid = true;
+        if (!validateEmail(email)) {
+            console.log('Validation Failed: Email format is invalid');
+            setEmailError('Invalid email address. Please enter a valid email in the format: username@example.com.');
+            isValid = false;
+        }
+
+        if (!validatePassword(password)) {
+            console.log('Validation Failed: Password does not meet requirements');
+            setPasswordError('Your password is incorrect.');
+            isValid = false;
+        }
+
+        if (!isValid) {
+            console.log('Login aborted due to validation errors.');
+            return;
+        }
+
         try {
             setLoading(true);
+            console.log('Calling loginUser service...');
 
-            const { user, token } = await loginUser(email, password);
+            const response = await loginUser(email, password);
 
-            // Store securely
+            // Log the full response to see what the server actually returns
+            console.log('Server Response:', response);
+
+            // Check if user and token exist in the response
+            const { user, token } = response;
+
+            if (!token) {
+                console.error('Error: Login succeeded but no token was received from the server.');
+                Alert.alert('Login Error', 'Server did not return an access token.');
+                return;
+            }
+
+            console.log('Saving to SecureStore...');
             await SecureStore.setItemAsync('access_token', token);
             await SecureStore.setItemAsync('email', email);
 
+            console.log('Navigation: Attempting to redirect to dashboard...');
             router.replace('/(tabs)/dashboard');
+
         } catch (error: any) {
-            console.log(error?.response?.data);
+            // DETAILED ERROR LOGGING
+            console.error('--- Login API Error ---');
+            if (error.response) {
+                // The request was made and the server responded with a status code
+                // that falls out of the range of 2xx
+                console.error('Status:', error.response.status);
+                console.error('Data:', error.response.data);
+                console.error('Headers:', error.response.headers);
+            } else if (error.request) {
+                // The request was made but no response was received
+                console.error('No response received. Is your server running?');
+                console.error('Request info:', error.request);
+            } else {
+                // Something happened in setting up the request that triggered an Error
+                console.error('Error Message:', error.message);
+            }
 
             Alert.alert(
                 'Login Failed',
-                error?.response?.data?.message || 'Invalid credentials'
+                error?.response?.data?.message || error.message || 'Invalid credentials'
             );
         } finally {
             setLoading(false);
+            console.log('--- Login Process Finished ---');
         }
-    };
-
-    // ----- Biometric Login -----
-    const handleBiometricLogin = async () => {
-        try {
-            const hasHardware = await LocalAuthentication.hasHardwareAsync();
-            if (!hasHardware) return Alert.alert('Biometrics not supported');
-
-            const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-            if (!isEnrolled)
-                return Alert.alert('No biometrics enrolled', 'Please enroll Face ID / Touch ID');
-
-            const result = await LocalAuthentication.authenticateAsync({
-                promptMessage: 'Login with Face ID / Fingerprint',
-                fallbackLabel: 'Enter Passcode',
-                cancelLabel: 'Cancel',
-            });
-
-            if (result.success) {
-                const token = await SecureStore.getItemAsync('access_token');
-                if (token) {
-                    router.replace('/(tabs)/dashboard');
-                } else {
-                    Alert.alert(
-                        'Biometric login',
-                        'Please login manually once to store your token.'
-                    );
-                }
-            }
-        } catch (err) {
-            console.log('Biometric login error:', err);
-        }
-    };
-
-    // ----- Logout Example (Optional) -----
-    const handleLogout = async () => {
-        await logoutUser();
-        Alert.alert('Logged out successfully');
     };
 
     return (
         <View style={styles.container}>
-            <View style={styles.logoContainer}>
-                <Text style={styles.brandName}>SLEEPYWEARS</Text>
-            </View>
+            <StatusBar style="light" />
 
-            <View style={styles.form}>
-                {/* Email Input */}
-                <TextInput
-                    label="Email"
-                    value={email}
-                    onChangeText={setEmail}
-                    mode="outlined"
-                    activeOutlineColor="#0A0B32"
-                    style={styles.input}
-                    textColor="#000"
+            <ImageBackground
+                source={require('../../../assets/images/blue-banner.png')}
+                style={styles.headerBackground}
+                resizeMode="cover"
+            >
+                <Image
+                    source={require('../../../assets/images/logo-white.png')}
+                    style={styles.logoImage}
+                    resizeMode="cover"
                 />
+            </ImageBackground>
 
-                {/* Password Input */}
-                <TextInput
-                    label="Password"
-                    value={password}
-                    onChangeText={setPassword}
-                    mode="outlined"
-                    secureTextEntry={hidePassword}
-                    activeOutlineColor="#0A0B32"
-                    style={styles.input}
-                    textColor="#000"
-                    right={
-                        <TextInput.Icon
-                            icon={hidePassword ? 'eye-off' : 'eye'}
-                            onPress={() => setHidePassword(!hidePassword)}
-                        />
-                    }
-                />
+            <View style={styles.content}>
+                <Text style={styles.loginTitle}>LOGIN</Text>
 
-                {/* Login Button */}
-                <Button
-                    mode="contained"
-                    onPress={handleLogin}
-                    loading={loading}
-                    disabled={loading}
-                    style={styles.loginButton}
-                    labelStyle={styles.buttonLabel}
-                >
-                    <Text> Login</Text>
-                </Button>
+                <View style={styles.form}>
+                    {/* Email Input */}
+                    <TextInput
+                        label="Email"
+                        value={email}
+                        onChangeText={(text) => {
+                            setEmail(text);
+                            if (emailError) setEmailError('');
+                        }}
+                        mode="flat"
+                        activeUnderlineColor="#0D0F66"
+                        underlineColor="#BDBDBD"
+                        error={!!emailError}
+                        style={styles.input}
+                        textColor="#0D0F66"
+                        autoCapitalize="none"
+                        theme={{
+                            colors: {
+                                onSurfaceVariant: '#818181',
+                                error: ERROR_COLOR
+                            }
+                        }}
+                    />
+                    <HelperText
+                        type="error"
+                        visible={!!emailError}
+                        style={[styles.helper, { color: ERROR_COLOR }]}  >
+                        {emailError}
+                    </HelperText>
 
-                {/* Biometric Button */}
-                <Button
-                    icon={() => <MaterialCommunityIcons name="face-recognition" size={24} />}
-                    onPress={handleBiometricLogin}
-                    style={{ marginTop: 15 }}
-                >
-                    <Text style={styles.biometrics}>  Login with Biometrics</Text>
-                </Button>
+                    {/* Password Input */}
+                    <TextInput
+                        label="Password"
+                        value={password}
+                        onChangeText={(text) => {
+                            setPassword(text);
+                            if (passwordError) setPasswordError('');
+                        }}
+                        mode="flat"
+                        secureTextEntry={hidePassword}
+                        activeUnderlineColor="#0D0F66"
+                        underlineColor="#BDBDBD"
+                        error={!!passwordError}
+                        style={styles.input}
+                        textColor="#0D0F66"
+                        theme={{
+                            colors: {
+                                onSurfaceVariant: '#818181',
+                                error: ERROR_COLOR
+                            }
+                        }}
+                        right={
+                            <TextInput.Icon
+                                icon={hidePassword ? 'eye-off' : 'eye'}
+                                color={passwordError ? ERROR_COLOR : "#0D0F66"}
+                                onPress={() => setHidePassword(!hidePassword)}
+                            />
+                        }
+                    />
+                    <HelperText
+                        type="error"
+                        visible={!!passwordError}
+                        style={[styles.helper, { color: ERROR_COLOR }]}
+                    >
+                        {passwordError}
+                    </HelperText>
 
-                {/* Forgot Password */}
-                <Text
-                    style={styles.forgotText}
-                    onPress={() => router.push('/screens/forgot-password')}
-                >
-                    Forgot Password?
-                </Text>
+                    <TouchableOpacity
+                        onPress={() => router.push('/screens/forgot-password')}
+                        style={styles.forgotContainer}
+                    >
+                        <Text style={styles.forgotText}>Forgot Password?</Text>
+                    </TouchableOpacity>
 
-                {/* Logout (optional, for testing) */}
-                {/* <Button onPress={handleLogout} style={{ marginTop: 10 }}>Logout</Button> */}
+                    <Button
+                        mode="contained"
+                        onPress={handleLogin}
+                        loading={loading}
+                        disabled={loading}
+                        style={styles.loginButton}
+                        contentStyle={styles.loginButtonContent}
+                        labelStyle={styles.buttonLabel}
+                    >
+                        Login
+                    </Button>
+                </View>
             </View>
         </View>
     );
@@ -161,55 +221,67 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f3f3f3',
-        padding: 20,
-        justifyContent: 'center'
+        backgroundColor: '#FFFFFF',
     },
-
-    logoContainer: {
+    headerBackground: {
+        width: width,
+        height: width * 1,
+        justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 50
+        marginTop: -10,
+        marginBottom: -130,
     },
-
-    brandName: {
-        fontFamily: 'LeagueSpartan-Bold',
-        fontSize: 32,
-        color: '#0A0B32',
-        marginTop: 10
+    logoImage: {
+        width: '75%',
+        height: 100,
+        marginTop: -110,
     },
-
+    content: {
+        flex: 1,
+        paddingHorizontal: 40,
+        marginTop: -20,
+    },
+    loginTitle: {
+        fontSize: 40,
+        fontWeight: '700',
+        color: '#05083E',
+        marginBottom: 10,
+    },
     form: {
-        width: '100%'
+        width: '100%',
     },
-
     input: {
-        marginBottom: 15,
-        backgroundColor: '#fff'
+        backgroundColor: 'transparent',
+        paddingHorizontal: 0,
+        fontSize: 16,
     },
-
-    loginButton: {
-        backgroundColor: '#0A0B32',
-        color: '#fff',
-        paddingVertical: 5,
-        borderRadius: 12,
-        marginTop: 10
+    helper: {
+        paddingHorizontal: 0,
+        marginBottom: 5,
+        lineHeight: 14,
     },
-
-    buttonLabel: {
-        fontFamily: 'LeagueSpartan-Bold',
-        fontSize: 18
+    forgotContainer: {
+        alignSelf: 'flex-end',
+        marginTop: 5,
+        marginBottom: 30,
     },
-
     forgotText: {
-        textAlign: 'center',
-        marginTop: 20,
-        fontFamily: 'LeagueSpartan',
-        color: '#AB8262'
+        color: '#1D72D4',
+        fontSize: 14,
+        fontWeight: '500',
     },
-
-    biometrics: {
-        color: '#000000'
-
-
-    }
+    loginButton: {
+        backgroundColor: '#0D0F66',
+        borderRadius: 12,
+        elevation: 0,
+    },
+    loginButtonContent: {
+        height: 56,
+    },
+    buttonLabel: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#FFFFFF',
+        textTransform: 'none',
+    },
 });
