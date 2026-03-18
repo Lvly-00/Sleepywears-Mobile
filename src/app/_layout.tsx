@@ -31,6 +31,13 @@ export default function RootLayout() {
               options={{ headerShown: false }}
             />
 
+
+            <Stack.Screen
+              name="screens/verify-otp"
+              options={{ headerShown: false }}
+            />
+
+
             <Stack.Screen
               name="screens/reset-password"
               options={{ headerShown: false }}
@@ -96,8 +103,8 @@ export default function RootLayout() {
               headerTitleAlign: 'left',
 
             }} />
-            
-             <Stack.Screen name="screens/edit-collection" options={{
+
+            <Stack.Screen name="screens/edit-collection" options={{
               presentation: 'fullScreenModal',
               title: 'Edit Collection',
               headerStyle: {

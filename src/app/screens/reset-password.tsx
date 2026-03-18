@@ -1,13 +1,17 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import { Alert, Dimensions, Image, ImageBackground, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, HelperText, Text, TextInput } from 'react-native-paper';
+import api from '../../services/api'; // Ensure this path is correct
 
 const { width } = Dimensions.get('window');
 const ERROR_COLOR = '#9E2626';
 
 export default function ResetPasswordScreen() {
+    // 1. Get the email and otp passed from the Verify OTP screen
+    const { email, otp } = useLocalSearchParams();
+
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -26,7 +30,7 @@ export default function ResetPasswordScreen() {
         return passwordRegex.test(text);
     };
 
-    const handleResetPassword = () => {
+    const handleResetPassword = async () => {
         setPasswordError('');
         setConfirmPasswordError('');
 
@@ -47,20 +51,32 @@ export default function ResetPasswordScreen() {
         if (!isValid) return;
 
         setLoading(true);
-        // Simulate API call
-        setTimeout(() => {
+        
+        try {
+            // 2. Call the actual API
+            await api.post('/passwords/reset', {
+                email: email,
+                otp: otp,
+                password: password,
+                password_confirmation: confirmPassword
+            });
+
             setLoading(false);
             Alert.alert('Success', 'Your password has been reset successfully.', [
-                { text: 'OK', onPress: () => router.replace('/screens') }
+                { text: 'OK', onPress: () => router.replace('/screens') } // Redirects to Login
             ]);
-        }, 1500);
+        } catch (error: any) {
+            setLoading(false);
+            const serverMessage = error.response?.data?.message || 'Failed to reset password. Please try again.';
+            setPasswordError(serverMessage);
+        }
     };
 
     return (
         <View style={styles.container}>
             <StatusBar style="light" />
 
-            {/* 1. Header Section (Same as Login) */}
+            {/* Header Section */}
             <ImageBackground
                 source={require('../../../assets/images/blue-banner.png')}
                 style={styles.headerBackground}
@@ -76,7 +92,6 @@ export default function ResetPasswordScreen() {
             <View style={styles.content}>
                 <Text style={styles.loginTitle}>RESET </Text>
                 <Text style={styles.loginTitle}>PASSWORD</Text>
-
 
                 <View style={styles.form}>
                     {/* New Password Input */}
@@ -103,6 +118,7 @@ export default function ResetPasswordScreen() {
                         right={
                             <TextInput.Icon
                                 icon={hidePassword ? 'eye-off' : 'eye'}
+                                forceTextInputFocus={false}
                                 color={passwordError ? ERROR_COLOR : "#0D0F66"}
                                 onPress={() => setHidePassword(!hidePassword)}
                             />
@@ -136,6 +152,7 @@ export default function ResetPasswordScreen() {
                         right={
                             <TextInput.Icon
                                 icon={hideConfirmPassword ? 'eye-off' : 'eye'}
+                                forceTextInputFocus={false}
                                 color={confirmPasswordError ? ERROR_COLOR : "#0D0F66"}
                                 onPress={() => setHideConfirmPassword(!hideConfirmPassword)}
                             />
@@ -164,8 +181,6 @@ export default function ResetPasswordScreen() {
                     >
                         Reset Password
                     </Button>
-
-
                 </View>
             </View>
         </View>

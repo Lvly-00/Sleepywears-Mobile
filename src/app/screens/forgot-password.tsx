@@ -1,45 +1,55 @@
-import { router } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import { Dimensions, Image, ImageBackground, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, HelperText, Text, TextInput } from 'react-native-paper';
+import api from '../../services/api';
 
 const { width } = Dimensions.get('window');
 const ERROR_COLOR = '#9E2626';
+const SUCCESS_COLOR = '#52966d';
 
 export default function ForgotPasswordScreen() {
     const [email, setEmail] = useState('');
-    const [emailError, setEmailError] = useState('');
+    const [message, setMessage] = useState({ text: '', type: '' });
     const [loading, setLoading] = useState(false);
 
-    // Email validation logic
-    const validateEmail = (text: string) => {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(text);
-    };
-
-    const handleResetPassword = () => {
-        setEmailError('');
-
-        if (!validateEmail(email)) {
-            setEmailError('Invalid email address. Please enter a valid email in the format: username@example.com.');
+    const handleForgotPassword = async () => {
+        if (!email) {
+            setMessage({ text: 'Please enter your email address.', type: 'error' });
             return;
         }
 
         setLoading(true);
-        // Simulate API call
-        setTimeout(() => {
+        setMessage({ text: '', type: '' });
+
+        try {
+            // Backend now sends a 6-digit OTP instead of a link
+            const response = await api.post('/passwords/forgot', { email });
+
+            setMessage({ text: "Code sent! Checking your email...", type: "success" });
+
+            // Navigate to OTP Verification Screen after 1.5 seconds
+            setTimeout(() => {
+                router.push({
+                    pathname: '/screens/verify-otp',
+                    params: { email: email }
+                });
+            }, 1500);
+
+        } catch (error: any) {
+            let msg = error.response?.data?.message || "Failed to send code. Please try again.";
+            setMessage({ text: msg, type: "error" });
+        } finally {
             setLoading(false);
-            console.log('Reset link sent to:', email);
-            router.push('/screens/reset-password');
-        }, 1500);
+        }
     };
+
 
     return (
         <View style={styles.container}>
             <StatusBar style="light" />
 
-            {/* 1. Header Section (Same as Login) */}
             <ImageBackground
                 source={require('../../../assets/images/blue-banner.png')}
                 style={styles.headerBackground}
@@ -56,21 +66,18 @@ export default function ForgotPasswordScreen() {
                 <Text style={styles.loginTitle}>FORGOT </Text>
                 <Text style={styles.loginTitle}>PASSWORD</Text>
 
-
                 <View style={styles.form}>
-
-                    {/* Email Input */}
                     <TextInput
                         label="Email"
                         value={email}
                         onChangeText={(text) => {
                             setEmail(text);
-                            if (emailError) setEmailError('');
+                            if (message.text) setMessage({ text: "", type: "" });
                         }}
                         mode="flat"
                         activeUnderlineColor="#0D0F66"
                         underlineColor="#0D0F66"
-                        error={!!emailError}
+                        error={message.type === "error"}
                         style={styles.input}
                         textColor="#818181"
                         autoCapitalize="none"
@@ -81,15 +88,27 @@ export default function ForgotPasswordScreen() {
                             }
                         }}
                     />
+
                     <HelperText
-                        type="error"
-                        visible={!!emailError}
-                        style={[styles.helper, { color: ERROR_COLOR }]}
+                        // We use "info" here so the component doesn't force the theme's red color
+                        type="info"
+                        visible={!!message.text}
+                        style={[
+                            styles.helper,
+                            {
+                                color: message.type === "error" ? ERROR_COLOR : SUCCESS_COLOR,
+                                // Ensure the text is fully opaque
+                                opacity: 1
+                            }
+                        ]}
                     >
-                        {emailError}
+                        {message.text}
                     </HelperText>
 
-                    {/* Back to Login */}
+                    <Link href="/screens/reset-password" style={{ marginTop: 20, color: 'blue' }}>
+                        TEST INTERNAL ROUTE
+                    </Link>
+
                     <TouchableOpacity
                         onPress={() => router.back()}
                         style={styles.backToLoginContainer}
@@ -97,10 +116,9 @@ export default function ForgotPasswordScreen() {
                         <Text style={styles.backToLoginText}>Back to Login</Text>
                     </TouchableOpacity>
 
-                    {/* Send Link Button */}
                     <Button
                         mode="contained"
-                        onPress={handleResetPassword}
+                        onPress={handleForgotPassword}
                         loading={loading}
                         disabled={loading}
                         style={styles.loginButton}
@@ -109,8 +127,6 @@ export default function ForgotPasswordScreen() {
                     >
                         Send Reset Link
                     </Button>
-
-
                 </View>
             </View>
         </View>
@@ -141,15 +157,9 @@ const styles = StyleSheet.create({
         marginTop: -20,
     },
     loginTitle: {
-        fontSize: 40, 
+        fontSize: 40,
         fontWeight: '700',
         color: '#05083E',
-    },
-    instructionText: {
-        fontSize: 14,
-        color: '#818181',
-        marginBottom: 25,
-        lineHeight: 20,
     },
     form: {
         width: '100%',
@@ -163,6 +173,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 0,
         marginBottom: 15,
         lineHeight: 14,
+        fontWeight: '600',
     },
     loginButton: {
         backgroundColor: '#0D0F66',
