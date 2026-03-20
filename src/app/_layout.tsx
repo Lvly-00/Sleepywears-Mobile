@@ -121,13 +121,13 @@ export default function RootLayout() {
 
             <Stack.Screen name="screens/items" options={{
               presentation: 'fullScreenModal',
-              title: 'Items',
+              // title: 'Items',
               headerStyle: {
                 backgroundColor: '#0A0B32',
               },
               headerTintColor: '#fff',
               headerTitleStyle: {
-                fontWeight: 800,
+                fontWeight: '800',
                 fontSize: 30,
               },
               headerTitleAlign: 'left',
@@ -136,7 +136,7 @@ export default function RootLayout() {
 
             <Stack.Screen name="screens/create-item" options={{
               presentation: 'fullScreenModal',
-              title: 'New Item',
+              title: 'Add Item',
               headerStyle: {
                 backgroundColor: '#0A0B32',
               },
@@ -148,7 +148,25 @@ export default function RootLayout() {
               headerTitleAlign: 'left',
 
             }} />
+
+            <Stack.Screen name="screens/edit-item" options={{
+              presentation: 'fullScreenModal',
+              title: 'Edit Item',
+              headerStyle: {
+                backgroundColor: '#0A0B32',
+              },
+              headerTintColor: '#fff',
+              headerTitleStyle: {
+                fontWeight: 800,
+                fontSize: 30,
+              },
+              headerTitleAlign: 'left',
+
+            }} />
+
           </Stack>
+
+
           <StatusBar style="auto" />
         </ThemeProvider>
       </PaperProvider>

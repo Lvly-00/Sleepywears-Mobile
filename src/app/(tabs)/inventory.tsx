@@ -57,6 +57,17 @@ export default function InventoryScreen() {
         setShowActions(true);
     };
 
+
+    const handleCardPress = (item: any) => {
+        router.push({
+            pathname: '/screens/items',
+            params: {
+                collectionId: item.id,
+                collectionName: item.name 
+            },
+        });
+    };
+
     const handleDelete = async () => {
         if (!selectedItem) return;
         try {

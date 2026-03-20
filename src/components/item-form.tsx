@@ -3,16 +3,18 @@ import React, { useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    Dimensions,
     Image,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
     StyleSheet,
-    Text,
     TouchableOpacity,
     View
 } from 'react-native';
-import { Button, Snackbar, TextInput } from 'react-native-paper';
+import { Button, Snackbar, Text, TextInput } from 'react-native-paper';
+
+const { width } = Dimensions.get('window');
 
 interface ItemFormProps {
     initialData?: {
@@ -30,7 +32,7 @@ export default function ItemForm({ initialData, onSubmit, loading, title }: Item
     const [name, setName] = useState(initialData?.name || "");
     const [price, setPrice] = useState(initialData?.price?.toString() || "");
     const [status, setStatus] = useState(initialData?.status || "Available");
-    const [image, setImage] = useState<any>(null); // For new picks
+    const [image, setImage] = useState<any>(null);
     const [existingImage, setExistingImage] = useState<string | null>(initialData?.image_url || null);
     
     const [visible, setVisible] = useState(false);
@@ -89,32 +91,73 @@ export default function ItemForm({ initialData, onSubmit, loading, title }: Item
         }
     };
 
+    const InputLabel = ({ title }: { title: string }) => (
+        <Text style={styles.label}>
+            {title} <Text style={{ color: '#E70B0B' }}>*</Text>
+        </Text>
+    );
+
     return (
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
-            <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
-                <Text style={styles.heading}>{title}</Text>
-
+            <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+                
+                {/* Image Picker Section */}
                 <TouchableOpacity style={styles.imagePicker} onPress={pickImage} disabled={loading}>
                     {image ? (
                         <Image source={{ uri: image.uri }} style={styles.previewImage} />
                     ) : existingImage ? (
                         <Image source={{ uri: existingImage }} style={styles.previewImage} />
                     ) : (
-                        <View style={styles.placeholderContainer}><Text style={styles.placeholderText}>+ Add Photo</Text></View>
+                        <View style={styles.placeholderContainer}>
+                            <Text style={styles.placeholderText}>Add Photo</Text>
+                        </View>
                     )}
                 </TouchableOpacity>
 
-                <TextInput label="Item Name" value={name} mode="outlined" onChangeText={setName} style={styles.input} outlineColor="#AB8262" activeOutlineColor="#0A0B32" disabled={loading} textColor='black' />
+                {/* Item Name Input */}
+                <View style={styles.inputGroup}>
+                    <InputLabel title="Item Name" />
+                    <TextInput 
+                        value={name} 
+                        mode="flat" 
+                        onChangeText={setName} 
+                        style={styles.input} 
+                        underlineColor="#BCBCBC" 
+                        activeUnderlineColor="#0A2167" 
+                        disabled={loading} 
+                        textColor='black' 
+                    />
+                </View>
 
-                <TextInput label="Price (₱)" value={price} mode="outlined" keyboardType="numeric" onChangeText={setPrice} style={styles.input} outlineColor="#AB8262" activeOutlineColor="#0A0B32" disabled={loading} left={<TextInput.Affix text="₱ " />} textColor='black' />
+                {/* Price Input */}
+                <View style={styles.inputGroup}>
+                    <InputLabel title="Price" />
+                    <TextInput 
+                        value={price} 
+                        mode="flat" 
+                        keyboardType="numeric" 
+                        onChangeText={setPrice} 
+                        style={styles.input} 
+                        underlineColor="#BCBCBC" 
+                        activeUnderlineColor="#0A2167" 
+                        disabled={loading} 
+                        textColor='black' 
+                        placeholder="₱ 0"
+                    />
+                </View>
 
-                
-                <View style={{ height: 100 }} />
+                <Button 
+                    mode="contained" 
+                    onPress={handleSubmit} 
+                    style={styles.saveButton} 
+                    labelStyle={styles.buttonLabel} 
+                    contentStyle={styles.buttonContent} 
+                    disabled={loading}
+                >
+                    {loading ? <ActivityIndicator color="#fff" /> : "Save"}
+                </Button>
+
             </ScrollView>
-
-            <Button mode="contained" onPress={handleSubmit} style={styles.saveButton} labelStyle={styles.buttonLabel} contentStyle={styles.buttonContent} disabled={loading}>
-                {loading ? <ActivityIndicator color="#fff" /> : "Save Item"}
-            </Button>
 
             <Snackbar visible={visible} onDismiss={() => setVisible(false)} duration={3000} style={styles.snackbar}>
                 <Text style={styles.snackbarText}>{errorMsg}</Text>
@@ -124,18 +167,85 @@ export default function ItemForm({ initialData, onSubmit, loading, title }: Item
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, padding: 20, backgroundColor: '#F1F0ED' },
-    heading: { fontSize: 28, fontFamily: 'LeagueSpartan-Bold', marginBottom: 20, color: '#0A0B32' },
-    imagePicker: { width: '60%', aspectRatio: 1080 / 1350, alignSelf: 'center', backgroundColor: '#fff', borderRadius: 16, borderWidth: 2, borderColor: '#AB8262', borderStyle: 'dashed', overflow: 'hidden', marginBottom: 25, justifyContent: 'center', alignItems: 'center' },
-    previewImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-    placeholderContainer: { alignItems: 'center' },
-    placeholderText: { fontFamily: 'LeagueSpartan', color: '#AB8262', fontSize: 16 },
-    input: { marginBottom: 15, backgroundColor: '#fff' },
-    statusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 },
-    statusLabel: { fontFamily: 'LeagueSpartan', fontSize: 18 },
-    saveButton: { position: 'absolute', bottom: 30, left: 20, right: 20, backgroundColor: '#AB8262', borderRadius: 12 },
-    buttonContent: { height: 55 },
-    buttonLabel: { fontFamily: 'LeagueSpartan-Bold', fontSize: 18, color: '#FFFFFF' },
-    snackbar: { bottom: 100, backgroundColor: '#B80000' },
-    snackbarText: { color: '#fff' }
+    container: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+    },
+    scrollContent: {
+        paddingHorizontal: 25,
+        paddingTop: 30,
+        paddingBottom: 50,
+    },
+    imagePicker: {
+        width: '70%',
+        aspectRatio: .8, // Square like the image
+        alignSelf: 'center',
+        backgroundColor: '#F2F2F2',
+        borderRadius: 4,
+        borderWidth: 2,
+        borderColor: '#818181',
+        borderStyle: 'dashed',
+        overflow: 'hidden',
+        marginBottom: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    previewImage: {
+        width: '100%',
+        height: '100%',
+        resizeMode: 'cover',
+    },
+    placeholderContainer: {
+        alignItems: 'center',
+    },
+    placeholderText: {
+        fontSize: 24,
+        color: '#939393',
+        textAlign: 'center',
+        fontWeight: 300,
+    },
+    inputGroup: {
+        marginBottom: 25,
+    },
+    label: {
+        fontSize: 16,
+        color: '#3E4491',
+        fontWeight: '500',
+        marginBottom: -5,
+    },
+    input: {
+        backgroundColor: 'transparent',
+        height: 45,
+        paddingHorizontal: 0,
+    },
+    saveButton: {
+        marginTop: 20,
+        backgroundColor: '#0A2167',
+        borderRadius: 8,
+        elevation: 0,
+    },
+    buttonContent: {
+        height: 55,
+    },
+    buttonLabel: {
+        fontSize: 22,
+        fontWeight: '700',
+        color: '#FFFFFF',
+        textTransform: 'none',
+    },
+    snackbar: {
+        backgroundColor: '#B80000',
+    },
+    snackbarText: {
+        color: '#fff',
+    },
+    // HeaderBackground added per your formatting request
+    headerBackground: {
+        width: width,
+        height: width * 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: -10,
+        marginBottom: -130,
+    },
 });

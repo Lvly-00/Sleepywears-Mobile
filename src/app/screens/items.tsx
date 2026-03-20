@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
     ActivityIndicator,
@@ -146,6 +146,7 @@ export default function ItemsScreen() {
 
         return (
             <View style={[styles.card, { opacity: isSold ? 0.85 : 1 }]}>
+
                 <View style={styles.imageContainer}>
                     <Image
                         source={{ uri: item.image_url || 'https://via.placeholder.com/150' }}
@@ -203,8 +204,11 @@ export default function ItemsScreen() {
             fabTextColor="#ffffff"
         >
             <View style={styles.container}>
-                <Text style={styles.heading}>{collectionName}</Text>
-
+                <Stack.Screen
+                    options={{
+                        title: (collectionName as string) || 'Items'
+                    }}
+                />
                 {loading ? (
                     <ActivityIndicator size="large" color="#A6976B" style={{ marginTop: 50 }} />
                 ) : (
