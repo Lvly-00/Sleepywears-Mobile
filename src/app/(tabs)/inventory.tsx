@@ -14,8 +14,6 @@ export default function InventoryScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [isFabExtended, setIsFabExtended] = useState(true);
 
-
-    // Modal State
     const [selectedItem, setSelectedItem] = useState<any>(null);
     const [showActions, setShowActions] = useState(false);
 
@@ -24,12 +22,12 @@ export default function InventoryScreen() {
             const res = await api.get('/collections');
             const data = Array.isArray(res.data?.data) ? res.data.data : [];
 
-            // SORTING LOGIC: Active first, Sold Out last
             const sortedData = data.sort((a: any, b: any) => {
                 if (a.status === 'Active' && b.status === 'Sold Out') return -1;
                 if (a.status === 'Sold Out' && b.status === 'Active') return 1;
                 return 0;
             });
+
             setCollections(sortedData);
         } catch (err) {
             console.error('Fetch error:', err);
@@ -57,13 +55,13 @@ export default function InventoryScreen() {
         setShowActions(true);
     };
 
-
+    // ✅ FIXED navigation (PASS NAME HERE)
     const handleCardPress = (item: any) => {
         router.push({
             pathname: '/screens/items',
             params: {
                 collectionId: item.id,
-                collectionName: item.name 
+                collectionName: item.name,
             },
         });
     };
@@ -72,17 +70,18 @@ export default function InventoryScreen() {
         if (!selectedItem) return;
         try {
             await api.delete(`/collections/${selectedItem.id}`);
-            setCollections((prev) => prev.filter((c) => c.id !== selectedItem.id));
+            setCollections(prev => prev.filter(c => c.id !== selectedItem.id));
             setShowActions(false);
-        } catch (err) { console.error('Delete error:', err); }
+        } catch (err) {
+            console.error('Delete error:', err);
+        }
     };
-
 
     const onScroll = ({ nativeEvent }: any) => {
-        const currentScrollPosition = Math.floor(nativeEvent?.contentOffset?.y) ?? 0;
-        // Extend if at top, collapse if scrolled down
-        setIsFabExtended(currentScrollPosition <= 0);
+        const y = Math.floor(nativeEvent?.contentOffset?.y) ?? 0;
+        setIsFabExtended(y <= 0);
     };
+
     return (
         <FabScreenWrapper
             fabLabel="Add Collection"
@@ -100,22 +99,20 @@ export default function InventoryScreen() {
                     value={searchQuery}
                     style={styles.searchBar}
                     inputStyle={styles.searchInput}
-                    theme={{ colors: { primary: '#0A256C' } }}
                 />
 
                 {loading ? (
-                    <ActivityIndicator style={{ marginTop: 50 }} color="#0A0B32" />
+                    <ActivityIndicator style={{ marginTop: 50 }} />
                 ) : (
                     <FlatList
                         data={filteredCollections}
                         onScroll={onScroll}
-                        scrollEventThrottle={16}
                         keyExtractor={(item) => item.id.toString()}
                         renderItem={({ item }) => (
                             <CollectionCard
                                 item={item}
-                                onPress={() => router.push({ pathname: '/screens/items', params: { collectionId: item.id } })}
-                                onLongPress={handleLongPress}
+                                onPress={() => handleCardPress(item)} // ✅ USE FIXED FUNCTION
+                                onLongPress={() => handleLongPress(item)}
                             />
                         )}
                         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -131,7 +128,13 @@ export default function InventoryScreen() {
                 onDismiss={() => setShowActions(false)}
                 onEdit={() => {
                     setShowActions(false);
-                    router.push({ pathname: '/screens/edit-collection', params: { collectionId: selectedItem.id } });
+                    router.push({
+                        pathname: '/screens/edit-collection',
+                        params: {
+                            collectionId: selectedItem.id,
+                            collectionName: selectedItem.name, 
+                        },
+                    });
                 }}
                 onDelete={handleDelete}
             />
@@ -140,9 +143,7 @@ export default function InventoryScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1
-    },
+    container: { flex: 1 },
     searchBar: {
         margin: 15,
         backgroundColor: '#FFFFFF',
@@ -152,10 +153,7 @@ const styles = StyleSheet.create({
         elevation: 0,
         height: 45,
     },
-    searchInput: {
-        minHeight: 0,
-        color: '#11181C',
-    },
+    searchInput: { minHeight: 0, color: '#11181C' },
     emptyText: {
         textAlign: 'center',
         marginTop: 50,

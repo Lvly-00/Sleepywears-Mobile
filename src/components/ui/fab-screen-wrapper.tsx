@@ -24,7 +24,7 @@ const FabScreenWrapper = ({
   onFabPress,
   visible = true,
   style,
-  fabBackgroundColor = '#0A0B32',
+  fabBackgroundColor = '#0A256C',
   fabTextColor = '#FFFFFF',
   isExtended = true, // Default to true
 }: FabScreenWrapperProps) => {
