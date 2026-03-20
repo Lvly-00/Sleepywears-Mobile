@@ -1,10 +1,10 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
-import { Alert, Dimensions, Image, ImageBackground, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Image, ImageBackground, Keyboard, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, HelperText, Text, TextInput } from 'react-native-paper';
-
 import { loginUser } from '../../services/authService';
 
 const { width } = Dimensions.get('window');
@@ -33,6 +33,8 @@ export default function LoginScreen() {
         console.log('--- Login Process Started ---');
         console.log('Current Input:', { email, password: password ? '********' : 'empty' });
 
+        Keyboard.dismiss();
+
         // Reset errors
         setEmailError('');
         setPasswordError('');
@@ -57,56 +59,34 @@ export default function LoginScreen() {
 
         try {
             setLoading(true);
-            console.log('Calling loginUser service...');
-
             const response = await loginUser(email, password);
-
-            // Log the full response to see what the server actually returns
-            console.log('Server Response:', response);
-
-            // Check if user and token exist in the response
-            const { user, token } = response;
+            const { token } = response;
 
             if (!token) {
-                console.error('Error: Login succeeded but no token was received from the server.');
-                Alert.alert('Login Error', 'Server did not return an access token.');
+                setPasswordError('Your password is incorrect.');
                 return;
             }
 
-            console.log('Saving to SecureStore...');
+            // Save and Navigate
             await SecureStore.setItemAsync('access_token', token);
             await SecureStore.setItemAsync('email', email);
 
-            console.log('Navigation: Attempting to redirect to dashboard...');
             router.replace('/(tabs)/dashboard');
 
         } catch (error: any) {
-            // DETAILED ERROR LOGGING
-            console.error('--- Login API Error ---');
-            if (error.response) {
-                // The request was made and the server responded with a status code
-                // that falls out of the range of 2xx
-                console.error('Status:', error.response.status);
-                console.error('Data:', error.response.data);
-                console.error('Headers:', error.response.headers);
-            } else if (error.request) {
-                // The request was made but no response was received
-                console.error('No response received. Is your server running?');
-                console.error('Request info:', error.request);
+            // Map API errors to inline helper text instead of Alerts
+            if (error.response?.status === 401 || error.response?.status === 422) {
+                setPasswordError('Your password is incorrect.');
             } else {
-                // Something happened in setting up the request that triggered an Error
-                console.error('Error Message:', error.message);
+                // General error (network etc) shown under password for visibility
+                setPasswordError('Unable to connect to server. Please try again.');
             }
-
-            Alert.alert(
-                'Login Failed',
-                error?.response?.data?.message || error.message || 'Invalid credentials'
-            );
+            console.error('Login Error:', error);
         } finally {
             setLoading(false);
-            console.log('--- Login Process Finished ---');
         }
     };
+
 
     return (
         <View style={styles.container}>
@@ -136,6 +116,9 @@ export default function LoginScreen() {
                             setEmail(text);
                             if (emailError) setEmailError('');
                         }}
+                        keyboardType='email-address'
+                        autoComplete='email'
+                        textContentType='emailAddress'
                         mode="flat"
                         activeUnderlineColor="#0D0F66"
                         underlineColor="#0D0F66"
@@ -199,6 +182,16 @@ export default function LoginScreen() {
                         style={styles.forgotContainer}
                     >
                         <Text style={styles.forgotText}>Forgot Password?</Text>
+                    </TouchableOpacity>
+
+
+                    <TouchableOpacity
+                        onPress={() => router.push('/screens/forgot-password')}
+                        style={styles.biometricsContainer}
+                    >
+                        <MaterialCommunityIcons name="face-recognition" size={20} color="#0D0F66" />
+
+                        <Text style={styles.biometrics}>Login with Biometrics</Text>
                     </TouchableOpacity>
 
                     <Button
@@ -268,6 +261,18 @@ const styles = StyleSheet.create({
     },
     forgotText: {
         color: '#1D72D4',
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    biometricsContainer: {
+        flexDirection: 'row',
+        alignSelf: 'center',
+        justifyContent: 'center',
+        marginBottom: 20,
+        gap: 10,
+    },
+    biometrics: {
+        color: '#3F4168',
         fontSize: 14,
         fontWeight: '500',
     },

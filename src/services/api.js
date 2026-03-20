@@ -1,14 +1,11 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
+import * as SecureStore from 'expo-secure-store'; // CHANGED
 import { API_URL } from "../services/config";
 import { resetToLogin } from "../utils/navigationService";
 
-// ---- TOKEN HANDLER ----
-const getToken = async () => {
-    return await AsyncStorage.getItem("access_token");
-};
+// Prevents multiple 401s from firing multiple redirects
+let isRedirecting = false;
 
-// ---- AXIOS INSTANCE ----
 const api = axios.create({
     baseURL: API_URL,
     headers: {
@@ -17,17 +14,18 @@ const api = axios.create({
     },
 });
 
-// ---- REQUEST INTERCEPTOR ----
 api.interceptors.request.use(
     async (config) => {
-        const token = await getToken();
-        if (token) config.headers.Authorization = `Bearer ${token}`;
+        // CHANGED: Use SecureStore.getItemAsync
+        const token = await SecureStore.getItemAsync("access_token");
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
         return config;
     },
     (error) => Promise.reject(error)
 );
 
-// ---- RESPONSE INTERCEPTOR ----
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
@@ -36,31 +34,21 @@ api.interceptors.response.use(
         if (
             error.response &&
             (error.response.status === 401 || error.response.status === 419) &&
-            !originalRequest.url.includes("/login") &&
-            !originalRequest.url.includes("/register")
+            !originalRequest.url.includes("/login")
         ) {
-            console.warn("⚠️ Session expired — clearing storage and redirecting...");
+            if (!isRedirecting) {
+                isRedirecting = true;
+                console.warn("⚠️ Session expired — clearing storage and redirecting...");
 
-            const cacheKeys = [
-                "access_token",
-                "collections_cache",
-                "collections_cache_time",
-                "user_settings_cache",
-                "products_cache",
-                "products_cache_time",
-                "dashboard_cache",
-                "orderItemsCache",
-                "selectedCollectionCache",
-                "paginationCache",
-                "orderItemsCache_v2",
-                "collectionsCache_v2",
-                "selectedCollectionCache_v2"
-            ];
+                // CHANGED: Use SecureStore to clear keys
+                const cacheKeys = ["access_token", "email"]; 
+                await Promise.all(cacheKeys.map((key) => SecureStore.deleteItemAsync(key)));
 
-            await Promise.all(cacheKeys.map((key) => AsyncStorage.removeItem(key)));
+                resetToLogin();
 
-            // Navigate back to login screen
-            resetToLogin();
+                // Reset flag after 2 seconds
+                setTimeout(() => { isRedirecting = false; }, 2000);
+            }
         }
 
         return Promise.reject(error);

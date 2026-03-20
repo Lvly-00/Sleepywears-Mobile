@@ -1,16 +1,11 @@
-import { CommonActions } from "@react-navigation/native";
+// src/utils/navigationService.js
+import { router } from 'expo-router';
 
-let navigator;
-
-export function setNavigator(navRef) {
-    navigator = navRef;
-}
-
-export function resetToLogin() {
-    navigator.dispatch(
-        CommonActions.reset({
-            index: 0,
-            routes: [{ name: "Login" }],
-        })
-    );
-}
+export const resetToLogin = () => {
+    // If we are deep in a stack, dismiss everything first
+    if (router.canGoBack()) {
+        router.dismissAll();
+    }
+    // Replace with the path to your login screen
+    router.replace('/screens/index'); 
+};

@@ -15,44 +15,41 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: true,
         headerStyle: {
-          backgroundColor: '#0A0B32', // Header background color
+          backgroundColor: '#0A0B32',
         },
-        headerTintColor: '#fff', // Header text and button color
+        headerTintColor: '#fff',
         headerTitleStyle: {
           fontWeight: 800,
           fontSize: 40,
         },
-        headerTitleAlign: 'left', // Center title on Android
+        headerTitleAlign: 'left',
         headerRight: () => (
           <Image
-            source={require('@/assets/images/Logo.png')} // 3. Path to your logo file
+            source={require('@/assets/images/Logo.png')}
             style={{
               width: 80,
               height: 80,
               marginRight: 15,
-              resizeMode: 'contain' // Ensures logo isn't stretched
+              resizeMode: 'contain'
             }}
           />
         ),
       }}
-      // This is where we integrate React Native Paper
       tabBar={({ navigation, state, descriptors, insets }) => (
         <BottomNavigation.Bar
           navigationState={state}
           safeAreaInsets={insets}
-          // Color of the selected tab icon and text
           activeColor="#F1F0ED"
 
-          // Color of the unselected tab icons and text
           inactiveColor="#ffffff"
           theme={{
             colors: {
-              secondaryContainer: '#1C4D8D', // Background color of the active pill
+              secondaryContainer: '#1C4D8D',
             }
           }}
           style={{
             backgroundColor: '#0A0B32'
-            
+
 
           }}
           onTabPress={({ route, preventDefault }) => {

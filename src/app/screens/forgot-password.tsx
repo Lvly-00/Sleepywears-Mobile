@@ -105,7 +105,7 @@ export default function ForgotPasswordScreen() {
                         {message.text}
                     </HelperText>
 
-                    <Link href="/screens/reset-password" style={{ marginTop: 20, color: 'blue' }}>
+                    <Link href="/screens/verify-otp" style={{ marginTop: 20, color: 'blue' }}>
                         TEST INTERNAL ROUTE
                     </Link>
 
