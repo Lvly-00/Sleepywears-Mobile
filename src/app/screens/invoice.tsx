@@ -2,14 +2,14 @@ import * as MediaLibrary from 'expo-media-library';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  ScrollView,
-  Share,
-  StyleSheet,
-  Text,
-  View
+    ActivityIndicator,
+    Alert,
+    Image,
+    ScrollView,
+    Share,
+    StyleSheet,
+    Text,
+    View
 } from 'react-native';
 import { Divider, IconButton, Surface } from 'react-native-paper';
 import ViewShot, { captureRef } from 'react-native-view-shot';
@@ -98,7 +98,7 @@ export default function InvoiceScreen() {
         <View style={styles.container}>
             {/* Custom Header */}
             <View style={styles.header}>
-                <IconButton icon="close" iconColor="#AB8262" onPress={() => router.replace('/screens/orders')} />
+                <IconButton icon="close" iconColor="#AB8262" onPress={() => router.replace('/(tabs)/orders')} />
                 <Text style={styles.headerTitle}>Invoice</Text>
                 <View style={styles.headerActions}>
                     <IconButton icon="download" iconColor="#AB8262" onPress={handleDownload} />

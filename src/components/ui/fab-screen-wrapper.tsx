@@ -1,11 +1,8 @@
-import React, { useState } from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  ViewStyle
-} from 'react-native';
+import React from 'react';
+import { StyleSheet, View, ViewStyle } from 'react-native';
+// CHANGED: Use the modern SafeAreaView
 import { AnimatedFAB } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface FabScreenWrapperProps {
   children: React.ReactNode;
@@ -14,9 +11,10 @@ interface FabScreenWrapperProps {
   onFabPress: () => void;
   visible?: boolean;
   style?: ViewStyle;
-  // Added color props
   fabBackgroundColor?: string; 
   fabTextColor?: string;
+  // Optional: Allow the screen to tell the FAB to extend/collapse
+  isExtended?: boolean; 
 }
 
 const FabScreenWrapper = ({
@@ -26,51 +24,40 @@ const FabScreenWrapper = ({
   onFabPress,
   visible = true,
   style,
-  fabBackgroundColor = '#0A0B32', // Default to your dark blue
-  fabTextColor = '#FFFFFF',       // Default to white
-}: FabScreenWrapperProps) => { // Added type to props
-  const [isExtended, setIsExtended] = useState(true);
-
-  const onScroll = ({ nativeEvent }: any) => {
-    const currentScrollPosition = Math.floor(nativeEvent?.contentOffset?.y) ?? 0;
-    setIsExtended(currentScrollPosition <= 0);
-  };
+  fabBackgroundColor = '#0A0B32',
+  fabTextColor = '#FFFFFF',
+  isExtended = true, // Default to true
+}: FabScreenWrapperProps) => {
 
   return (
-    <SafeAreaView style={[styles.container, style]}>
-      <ScrollView 
-        onScroll={onScroll} 
-        scrollEventThrottle={16}
-        contentContainerStyle={styles.scrollContent}
-      >
+    <SafeAreaView style={[styles.container, style]} edges={['right', 'left']}>
+      {/* 
+        REMOVED <ScrollView>: 
+        This was causing the "VirtualizedLists" error. 
+        Scrolling is now handled by the children (e.g., the FlatList in InventoryScreen).
+      */}
+      <View style={styles.content}>
         {children}
-      </ScrollView>
+      </View>
 
       <AnimatedFAB
         icon={fabIcon}
         label={fabLabel}
-        extended={isExtended}
+        extended={isExtended} 
         onPress={onFabPress}
         visible={visible}
         animateFrom={'right'}
         iconMode={'dynamic'}
-        
-        // 1. Color of the Icon and Text
         color={fabTextColor} 
-        
-        // 2. Background Color of the Button
         style={[
           styles.fabStyle, 
-          { backgroundColor: fabBackgroundColor ,
-            
-          } 
+          { backgroundColor: fabBackgroundColor } 
         ]}
-        
-        labelStyle={{ 
-          fontFamily: 'LeagueSpartan-Bold', 
-          marginLeft: 8,
-          color: fabTextColor // Ensures label matches icon color
-        }} 
+        // labelStyle={{ 
+        //   fontFamily: 'LeagueSpartan-Bold', 
+        //   marginLeft: 8,
+        //   color: fabTextColor 
+        // }} 
       />
     </SafeAreaView>
   );
@@ -81,10 +68,10 @@ export default FabScreenWrapper;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FFFFFF', // Ensures consistent background
   },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: 100,
+  content: {
+    flex: 1,
   },
   fabStyle: {
     bottom: 16,

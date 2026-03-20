@@ -17,7 +17,7 @@ export default function TabLayout() {
         headerStyle: {
           backgroundColor: '#0A0B32',
         },
-        headerTintColor: '#fff',
+        headerTintColor: '#FFFFFF',
         headerTitleStyle: {
           fontWeight: 800,
           fontSize: 40,
@@ -39,7 +39,7 @@ export default function TabLayout() {
         <BottomNavigation.Bar
           navigationState={state}
           safeAreaInsets={insets}
-          activeColor="#F1F0ED"
+          activeColor="#FFFFFF"
 
           inactiveColor="#ffffff"
           theme={{

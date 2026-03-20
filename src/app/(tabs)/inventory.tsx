@@ -1,27 +1,36 @@
 import { router } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { ActivityIndicator } from 'react-native-paper';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Searchbar, Text } from 'react-native-paper';
+import { ActionDialog } from '../../components/action-dialog';
+import { CollectionCard } from '../../components/collection-card';
 import FabScreenWrapper from '../../components/ui/fab-screen-wrapper';
-import SwipeableCard from '../../components/ui/swipeable-card';
 import api from '../../services/api';
 
 export default function InventoryScreen() {
     const [collections, setCollections] = useState<any[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [isFabExtended, setIsFabExtended] = useState(true);
 
-    const sortCollections = (list: any[]) => {
-        const order: any = { Active: 0, 'Sold Out': 1 };
-        return [...list].sort((a, b) => order[a.status] - order[b.status]);
-    };
+
+    // Modal State
+    const [selectedItem, setSelectedItem] = useState<any>(null);
+    const [showActions, setShowActions] = useState(false);
 
     const fetchCollections = async () => {
         try {
             const res = await api.get('/collections');
-            console.log('API Response:', res.data);
             const data = Array.isArray(res.data?.data) ? res.data.data : [];
-            setCollections(sortCollections(data));
+
+            // SORTING LOGIC: Active first, Sold Out last
+            const sortedData = data.sort((a: any, b: any) => {
+                if (a.status === 'Active' && b.status === 'Sold Out') return -1;
+                if (a.status === 'Sold Out' && b.status === 'Active') return 1;
+                return 0;
+            });
+            setCollections(sortedData);
         } catch (err) {
             console.error('Fetch error:', err);
         } finally {
@@ -30,74 +39,116 @@ export default function InventoryScreen() {
         }
     };
 
-    useEffect(() => {
-        fetchCollections();
-    }, []);
+    useEffect(() => { fetchCollections(); }, []);
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
         fetchCollections();
     }, []);
 
-    const handleEditPress = (item: any) => {
-        router.push({
-            pathname: '/screens/edit-collection',
-            params: { collectionId: item.id },
-        });
+    const filteredCollections = useMemo(() => {
+        return collections.filter(item =>
+            item.name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [searchQuery, collections]);
+
+    const handleLongPress = (item: any) => {
+        setSelectedItem(item);
+        setShowActions(true);
     };
 
-    const handleDeletePress = async (id: number) => {
+    const handleDelete = async () => {
+        if (!selectedItem) return;
         try {
-            await api.delete(`/collections/${id}`);
-            setCollections((prev) => prev.filter((c) => c.id !== id));
-        } catch (err) {
-            console.error('Delete error:', err);
-        }
+            await api.delete(`/collections/${selectedItem.id}`);
+            setCollections((prev) => prev.filter((c) => c.id !== selectedItem.id));
+            setShowActions(false);
+        } catch (err) { console.error('Delete error:', err); }
     };
 
-    const handleCardPress = (item: any) => {
-        router.push({
-            pathname: '/screens/items',
-            params: { collectionId: item.id },
-        });
+
+    const onScroll = ({ nativeEvent }: any) => {
+        const currentScrollPosition = Math.floor(nativeEvent?.contentOffset?.y) ?? 0;
+        // Extend if at top, collapse if scrolled down
+        setIsFabExtended(currentScrollPosition <= 0);
     };
-
-    const renderItem = ({ item }: { item: any }) => (
-        <SwipeableCard
-            item={item}
-            onPress={() => handleCardPress(item)}
-            onEdit={() => handleEditPress(item)}
-            onDelete={() => handleDeletePress(item.id)}
-        />
-    );
-
     return (
         <FabScreenWrapper
-            fabLabel="New Collection"
-            fabIcon="layers-plus"
+            fabLabel="Add Collection"
+            fabIcon="plus"
+            isExtended={isFabExtended}
             onFabPress={() => router.push('/screens/create-collection')}
-            fabBackgroundColor="#AB8262"
+            fabBackgroundColor="#0A1D56"
             fabTextColor="#ffffff"
         >
             <View style={styles.container}>
+                <Searchbar
+                    placeholder="Search Collection..."
+                    placeholderTextColor={'#7A7A7A'}
+                    onChangeText={setSearchQuery}
+                    value={searchQuery}
+                    style={styles.searchBar}
+                    inputStyle={styles.searchInput}
+                    theme={{ colors: { primary: '#0A256C' } }}
+                />
+
                 {loading ? (
                     <ActivityIndicator style={{ marginTop: 50 }} color="#0A0B32" />
                 ) : (
                     <FlatList
-                        data={collections}
+                        data={filteredCollections}
+                        onScroll={onScroll}
+                        scrollEventThrottle={16}
                         keyExtractor={(item) => item.id.toString()}
-                        renderItem={renderItem}
+                        renderItem={({ item }) => (
+                            <CollectionCard
+                                item={item}
+                                onPress={() => router.push({ pathname: '/screens/items', params: { collectionId: item.id } })}
+                                onLongPress={handleLongPress}
+                            />
+                        )}
                         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
                         ListEmptyComponent={<Text style={styles.emptyText}>No collections found.</Text>}
                         contentContainerStyle={{ paddingBottom: 100 }}
                     />
                 )}
             </View>
+
+            <ActionDialog
+                visible={showActions}
+                item={selectedItem}
+                onDismiss={() => setShowActions(false)}
+                onEdit={() => {
+                    setShowActions(false);
+                    router.push({ pathname: '/screens/edit-collection', params: { collectionId: selectedItem.id } });
+                }}
+                onDelete={handleDelete}
+            />
         </FabScreenWrapper>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { padding: 20, flex: 1 },
-    emptyText: { textAlign: 'center', marginTop: 50, fontFamily: 'LeagueSpartan', color: '#7A7A7A', fontSize: 18 },
+    container: {
+        flex: 1
+    },
+    searchBar: {
+        margin: 15,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 25,
+        borderWidth: 1,
+        borderColor: '#ADB5BD',
+        elevation: 0,
+        height: 45,
+    },
+    searchInput: {
+        minHeight: 0,
+        color: '#11181C',
+    },
+    emptyText: {
+        textAlign: 'center',
+        marginTop: 50,
+        color: '#7A7A7A',
+        fontSize: 16
+    },
 });
