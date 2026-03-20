@@ -26,7 +26,7 @@ export default function LoginScreen() {
     };
 
     const validatePassword = (text: string) => {
-        return text.length >= 1; // Just check if they typed something
+        return text.length >= 1; 
     };
 
     const handleLogin = async () => {
@@ -74,11 +74,9 @@ export default function LoginScreen() {
             router.replace('/(tabs)/dashboard');
 
         } catch (error: any) {
-            // Map API errors to inline helper text instead of Alerts
             if (error.response?.status === 401 || error.response?.status === 422) {
                 setPasswordError('Your password is incorrect.');
             } else {
-                // General error (network etc) shown under password for visibility
                 setPasswordError('Unable to connect to server. Please try again.');
             }
             console.error('Login Error:', error);

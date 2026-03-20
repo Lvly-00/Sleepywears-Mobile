@@ -1,31 +1,33 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text } from 'react-native';
+import { Dimensions, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ActivityIndicator, Button, Snackbar, TextInput } from 'react-native-paper';
+import { DatePickerModal } from 'react-native-paper-dates';
 import api from '../services/api';
+
+const { width } = Dimensions.get('window');
 
 type CollectionFormProps = {
     mode: 'create' | 'edit';
     initialData?: any;
 };
 
-
 export default function CollectionForm({ mode, initialData }: CollectionFormProps) {
-    // Initialize state safely
-    // console.log("CollectionForm Props:", { mode, initialData });
-
     const [name, setName] = useState(initialData?.name || '');
     const [capital, setCapital] = useState(
         initialData?.capital != null ? formatCurrency(String(initialData.capital)) : ''
     );
 
-    const [date, setDate] = useState(initialData?.release_date || new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState<Date>(initialData?.release_date ? new Date(initialData.release_date) : new Date());
+    const [paymentCutOff, setPaymentCutOff] = useState<Date>(initialData?.payment_cutoff_date ? new Date(initialData.payment_cutoff_date) : new Date());
+
+    const [showReleasePicker, setShowReleasePicker] = useState(false);
+    const [showCutOffPicker, setShowCutOffPicker] = useState(false);
 
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({ name: '', capital: '', date: '' });
     const [visible, setVisible] = useState(false);
 
-    // Format number as currency
     function formatCurrency(val: string) {
         const digits = val.replace(/\D/g, '');
         if (!digits) return '';
@@ -36,18 +38,20 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
         }).format(parseInt(digits));
     }
 
+    // Format Date object to YYYY-MM-DD string for PHP backend
+    const formatDateString = (dateObj: Date) => {
+        return dateObj.toISOString().split('T')[0];
+    };
+
     const handleSubmit = async () => {
-        const newErrors = { name: '', capital: '', date: '' };
+        const newErrors = { name: '', capital: '', date: '', paymentCutoff: '' };
         let isValid = true;
 
         if (!name.trim()) {
             newErrors.name = 'Collection number is required';
             isValid = false;
         }
-        if (!date) {
-            newErrors.date = 'Release date is required';
-            isValid = false;
-        }
+
         if (!isValid) {
             setErrors(newErrors);
             return;
@@ -57,8 +61,9 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
         try {
             const payload = {
                 name: name.replace(/\D/g, ''),
-                release_date: date,
-                capital: capital.replace(/\D/g, '') || 0, // remove formatting for API
+                release_date: formatDateString(date),
+                payment_cutoff_date: formatDateString(paymentCutOff),
+                capital: capital.replace(/\D/g, '') || 0,
             };
 
             if (mode === 'create') {
@@ -73,7 +78,6 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
                 router.replace('/(tabs)/inventory');
             }, 1500);
         } catch (error: any) {
-            console.error('Submission Error:', error.response?.data || error.message);
             if (error.response?.status === 422) {
                 const validationErrors = error.response.data.errors || {};
                 setErrors({
@@ -81,76 +85,139 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
                     capital: validationErrors.capital ? validationErrors.capital[0] : '',
                     date: validationErrors.release_date ? validationErrors.release_date[0] : '',
                 });
-            } else {
-                alert('An error occurred. Please try again.');
             }
         } finally {
             setLoading(false);
         }
     };
 
-    console.log("CollectionForm Props:", { initialData, name, capital, date });
-
+    const InputLabel = ({ title }: { title: string }) => (
+        <Text style={styles.label}>
+            {title} <Text style={{ color: '#E70B0B' }}>*</Text>
+        </Text>
+    );
 
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.container}
         >
-            <ScrollView style={{ flex: 1 }}>
-                <Text style={styles.heading}>{mode === 'create' ? 'New Collection' : 'Edit Collection'}</Text>
+            <ScrollView contentContainerStyle={styles.scrollContent}>
 
-                <TextInput
-                    label="Collection Number"
-                    value={name}
-                    mode="outlined"
-                    keyboardType="numeric"
-                    onChangeText={(val) => {
-                        setName(val.replace(/\D/g, ''));
-                        setErrors((prev) => ({ ...prev, name: '' }));
-                    }}
-                    error={!!errors.name}
-                    style={styles.input}
-                    outlineColor="#AB8262"
-                    activeOutlineColor="#0A0B32"
-                    textColor="#000"
-                />
+                {/* Collection Number */}
+                <View style={styles.inputGroup}>
+                    <InputLabel title="Collection Number" />
+                    <TextInput
+                        value={name}
+                        mode="flat"
+                        keyboardType="numeric"
+                        onChangeText={(val) => {
+                            setName(val.replace(/\D/g, ''));
+                            setErrors((prev) => ({ ...prev, name: '' }));
+                        }}
+                        error={!!errors.name}
+                        style={styles.input}
+                        underlineColor="#818181"
+                        activeUnderlineColor="#0A0B32"
+                        textColor="#0A0B32"
+                    />
+                </View>
 
-                <TextInput
-                    label="Capital"
-                    value={capital}
-                    placeholder="₱ 0"
-                    mode="outlined"
-                    keyboardType="numeric"
-                    onChangeText={(val) => setCapital(formatCurrency(val))}
-                    style={styles.input}
-                    outlineColor="#AB8262"
-                    activeOutlineColor="#0A0B32"
-                    textColor="#000"
-                />
+                {/* Capital */}
+                <View style={styles.inputGroup}>
+                    <InputLabel title="Capital" />
+                    <TextInput
+                        value={capital}
+                        placeholder="₱ 0"
+                        mode="flat"
+                        keyboardType="numeric"
+                        onChangeText={(val) => setCapital(formatCurrency(val))}
+                        style={styles.input}
+                        underlineColor="#818181"
+                        activeUnderlineColor="#0A0B32"
+                        textColor="#0A0B32"
+                    />
+                </View>
 
-                <TextInput
-                    label="Release Date"
-                    value={date}
-                    mode="outlined"
-                    placeholder="YYYY-MM-DD"
-                    onChangeText={setDate}
-                    style={styles.input}
-                    outlineColor="#AB8262"
-                    activeOutlineColor="#0A0B32"
-                    textColor="#000"
-                />
+                {/* Release Date Picker */}
+                <View style={styles.inputGroup}>
+                    <InputLabel title="Release Date" />
+                    <TouchableOpacity onPress={() => setShowReleasePicker(true)}>
+                        <View pointerEvents="none">
+                            <TextInput
+                                value={formatDateString(date)}
+                                mode="flat"
+                                style={styles.input}
+                                underlineColor="#818181"
+                                activeUnderlineColor="#0A0B32"
+                                textColor="#0A0B32"
+                                right={<TextInput.Icon icon="calendar" />}
+                                editable={false}
+                            />
+                        </View>
+                    </TouchableOpacity>
+                </View>
+
+                {/* Payment Cut-off Picker */}
+                <View style={styles.inputGroup}>
+                    <InputLabel title="Payment Cut-off Date" />
+                    <TouchableOpacity onPress={() => setShowCutOffPicker(true)}>
+                        <View pointerEvents="none">
+                            <TextInput
+                                value={formatDateString(paymentCutOff)}
+                                mode="flat"
+                                style={styles.input}
+                                underlineColor="#818181"
+                                activeUnderlineColor="#0A0B32"
+                                textColor="#0A0B32"
+                                right={<TextInput.Icon icon="calendar" />}
+                                editable={false}
+                            />
+                        </View>
+                    </TouchableOpacity>
+                </View>
 
                 <Button
                     mode="contained"
                     onPress={handleSubmit}
                     disabled={loading}
-                    style={styles.placeOrderButton}
+                    style={styles.saveButton}
                     labelStyle={styles.buttonLabel}
                     contentStyle={styles.buttonContent}
                 >
-                    {loading ? <ActivityIndicator color="#fff" /> : mode === 'create' ? 'Add Collection' : 'Update Collection'}
+                    {loading ? (
+                        <ActivityIndicator color="#fff" />
+                    ) : (
+                        mode === 'create' ? 'Save' : 'Update'
+                    )}
                 </Button>
+
+
+                {/* MD3 Date Picker Modals */}
+                <DatePickerModal
+                    locale="en"
+                    mode="single"
+                    visible={showReleasePicker}
+                    onDismiss={() => setShowReleasePicker(false)}
+                    date={date}
+                    onConfirm={(params) => {
+                        setShowReleasePicker(false);
+                        if (params.date) setDate(params.date);
+                    }}
+                />
+
+                <DatePickerModal
+                    locale="en"
+                    mode="single"
+                    visible={showCutOffPicker}
+                    onDismiss={() => setShowCutOffPicker(false)}
+                    date={paymentCutOff}
+                    onConfirm={(params) => {
+                        setShowCutOffPicker(false);
+                        if (params.date) setPaymentCutOff(params.date);
+                    }}
+                />
+
             </ScrollView>
 
             <Snackbar
@@ -168,12 +235,48 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, padding: 20, backgroundColor: '#F1F0ED' },
-    heading: { fontSize: 28, fontFamily: 'LeagueSpartan-Bold', marginBottom: 20, color: '#0A0B32' },
-    input: { marginBottom: 15, backgroundColor: '#fff', fontFamily: 'LeagueSpartan' },
-    placeOrderButton: { marginTop: 20, backgroundColor: '#AB8262', borderRadius: 12, elevation: 4 },
-    buttonContent: { height: 50 },
-    buttonLabel: { fontFamily: 'LeagueSpartan-Bold', fontSize: 18, color: '#FFFFFF' },
-    snackbar: { backgroundColor: '#2e7d32', bottom: 30 },
-    snackbarText: { fontFamily: 'LeagueSpartan', color: '#fff' },
+    container: {
+        flex: 1,
+        backgroundColor: '#FFFFFF'
+    },
+    scrollContent: {
+        paddingHorizontal: 30,
+        paddingTop: 40,
+        paddingBottom: 40
+    },
+    inputGroup: {
+        marginBottom: 25,
+    },
+    label: {
+        fontSize: 16,
+        color: '#3E4491',
+        fontWeight: '500',
+        marginBottom: -5,
+    },
+    input: {
+        backgroundColor: 'transparent',
+        height: 50,
+        paddingHorizontal: 0,
+    },
+    saveButton: {
+        marginTop: 10,
+        backgroundColor: '#0A256C',
+        borderRadius: 8,
+        elevation: 0,
+    },
+    buttonContent: {
+        height: 55
+    },
+    buttonLabel: {
+        fontSize: 22,
+        fontWeight: '700',
+        color: '#FFFFFF',
+        textTransform: 'none',
+    },
+    snackbar: {
+        backgroundColor: '#2e7d32',
+    },
+    snackbarText: {
+        color: '#fff'
+    },
 });

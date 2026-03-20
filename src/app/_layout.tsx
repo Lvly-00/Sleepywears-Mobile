@@ -91,7 +91,7 @@ export default function RootLayout() {
 
             <Stack.Screen name="screens/create-collection" options={{
               presentation: 'fullScreenModal',
-              title: 'New Collection',
+              title: 'Add Collection',
               headerStyle: {
                 backgroundColor: '#0A0B32',
               },
