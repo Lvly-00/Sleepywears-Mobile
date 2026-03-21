@@ -1,241 +1,252 @@
 import api from '@/src/services/api';
-import React, { useEffect, useState } from 'react';
-import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Linking,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
-} from 'react-native';
-import { Divider, IconButton, Surface } from 'react-native-paper';
-
-// --- Types ---
-interface Customer {
-  id: number;
-  first_name: string;
-  last_name: string;
-  address?: string;
-  contact_number: string;
-  social_handle?: string;
-  created_at: string;
-}
+import { Customer } from '@/src/types/customer';
+import { router } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { RefreshControl, SectionList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Searchbar } from 'react-native-paper';
+import { AlphabetSidebar } from '../../components/alphabet-sidebar'; // Import the new component
+import { ActionModal } from '../../components/customers-action-modal';
 
 export default function CustomerLogsScreen() {
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [isMoreLoading, setIsMoreLoading] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
 
-  // Fetch Customers
-  const fetchCustomers = async (targetPage: number, searchTerm: string, isRefreshing = false) => {
-    if (isRefreshing) setRefreshing(true);
-    else setLoading(true);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+
+  // Refs
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sectionListRef = useRef<SectionList>(null);
+
+  // 1. Functional Scrolling Logic
+  const scrollToLetter = (letter: string) => {
+    // Find the first section that is equal to or greater than the letter (alphabetically)
+    const sectionIndex = sections.findIndex(section => section.title >= letter);
+
+    if (sectionIndex !== -1) {
+      sectionListRef.current?.scrollToLocation({
+        sectionIndex,
+        itemIndex: 0,
+        animated: true,
+        viewOffset: 0,
+      });
+    }
+  };
+
+  const fetchCustomers = async (cursor: string | null = null, isRefreshing = false) => {
+    if (cursor) setIsMoreLoading(true);
+    else if (!isRefreshing) setLoading(true);
 
     try {
       const res = await api.get("/customers", {
         params: {
-          page: targetPage,
-          per_page: 10,
-          search: searchTerm.trim() || undefined,
-        },
+          cursor: cursor,
+          search: search || undefined,
+          per_page: 15
+        }
       });
 
-      const data = res.data.data || [];
-      setCustomers(data);
-      setTotalPages(res.data.last_page || 1);
+      const newData = res.data.data || [];
+      const cursorUrl = res.data.next_page_url;
+
+      // Extract cursor string from Laravel URL
+      const nextCursorStr = cursorUrl ? new URL(cursorUrl).searchParams.get('cursor') : null;
+
+      setCustomers(prev => cursor ? [...prev, ...newData] : newData);
+      setNextCursor(nextCursorStr);
     } catch (err) {
       console.error("Fetch error:", err);
-      Alert.alert("Error", "Failed to load customers.");
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setIsMoreLoading(false);
     }
   };
 
+  // Debounced Search
   useEffect(() => {
-    fetchCustomers(page, search);
-  }, [page]);
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
 
-  const handleSearch = () => {
-    setPage(1);
-    fetchCustomers(1, search);
-  };
+    searchTimeout.current = setTimeout(() => {
+      fetchCustomers(null, false);
+    }, 500);
 
-  const handleDelete = (customer: Customer) => {
-    Alert.alert(
-      "Permanently Delete?",
-      `This will delete ${customer.first_name} ${customer.last_name} and all associated orders. Are you sure?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Delete", 
-          style: "destructive", 
-          onPress: async () => {
-            try {
-              await api.delete(`/customers/${customer.id}`);
-              fetchCustomers(page, search);
-            } catch (err) {
-              Alert.alert("Error", "Could not delete customer.");
-            }
-          } 
-        }
-      ]
-    );
-  };
+    return () => { if (searchTimeout.current) clearTimeout(searchTimeout.current); };
+  }, [search]);
 
-  const openLink = (url?: string) => {
-    if (url && /^https?:\/\//.test(url)) {
-      Linking.openURL(url).catch(() => Alert.alert("Error", "Invalid URL"));
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchCustomers(null, true);
+  }, [search]);
+
+  const handleLoadMore = () => {
+    if (nextCursor && !isMoreLoading) {
+      fetchCustomers(nextCursor);
     }
   };
 
-  const renderCustomerItem = ({ item }: { item: Customer }) => (
-    <Surface style={styles.card} elevation={1}>
-      <View style={styles.cardHeader}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.customerName}>{item.first_name} {item.last_name}</Text>
-          <Text style={styles.dateLabel}>Joined {new Date(item.created_at).toLocaleDateString()}</Text>
-        </View>
-        <IconButton 
-          icon="trash-can-outline" 
-          iconColor="#9E2626" 
-          size={22} 
-          onPress={() => handleDelete(item)} 
-        />
-      </View>
+  // Memoized Sections
+  const sections = useMemo(() => {
+    const groups = customers.reduce((acc, obj) => {
+      const key = obj.first_name[0].toUpperCase();
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(obj);
+      return acc;
+    }, {} as any);
 
-      <Divider style={styles.divider} />
+    return Object.keys(groups).sort().map(key => ({
+      title: key,
+      data: groups[key]
+    }));
+  }, [customers]);
 
-      <View style={styles.detailRow}>
-        <Text style={styles.label}>Address:</Text>
-        <Text style={styles.value}>{item.address || "—"}</Text>
-      </View>
-
-      <View style={styles.detailRow}>
-        <Text style={styles.label}>Contact:</Text>
-        <Text style={styles.value}>{item.contact_number}</Text>
-      </View>
-
-      {item.social_handle && (
-        <TouchableOpacity onPress={() => openLink(item.social_handle)} style={styles.detailRow}>
-          <Text style={styles.label}>Socials:</Text>
-          <Text style={[styles.value, styles.linkText]} numberOfLines={1}>
-            {item.social_handle}
-          </Text>
-        </TouchableOpacity>
-      )}
-    </Surface>
-  );
+  const handleLongPress = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setModalVisible(true);
+  };
 
   return (
     <View style={styles.container}>
-      {/* Header Area */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Customer Logs</Text>
-        <View style={styles.searchRow}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by name..."
-            value={search}
-            onChangeText={setSearch}
-            onSubmitEditing={handleSearch}
-          />
-          <IconButton 
-            icon="magnify" 
-            mode="contained" 
-            containerColor="#0D0F66" 
-            iconColor="#FFF" 
-            size={24} 
-            onPress={handleSearch} 
-          />
-        </View>
+      <View style={styles.searchContainer}>
+        <Searchbar
+          placeholder="Search Customer..."
+          placeholderTextColor={'#7A7A7A'}
+          onChangeText={setSearch}
+          value={search}
+          style={styles.searchBar}
+          inputStyle={styles.searchInputText}
+          elevation={0}
+        />
       </View>
 
-      {loading && customers.length === 0 ? (
-        <ActivityIndicator color="#AB8262" size="large" style={{ marginTop: 50 }} />
-      ) : (
-        <FlatList
-          data={customers}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderCustomerItem}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => fetchCustomers(1, search, true)} />
-          }
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>No customers found.</Text>
-          }
-          ListFooterComponent={
-            <View style={styles.pagination}>
-              <IconButton 
-                icon="chevron-left" 
-                disabled={page === 1} 
-                onPress={() => setPage(p => p - 1)} 
-              />
-              <Text style={styles.pageIndicator}>Page {page} of {totalPages}</Text>
-              <IconButton 
-                icon="chevron-right" 
-                disabled={page === totalPages} 
-                onPress={() => setPage(p => p + 1)} 
-              />
-            </View>
-          }
-        />
-      )}
+      <View style={{ flex: 1, flexDirection: 'row' }}>
+        {loading ? (
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <ActivityIndicator color="#1D2671" />
+          </View>
+        ) : (
+          <SectionList
+            ref={sectionListRef} // Attach Ref
+            sections={sections}
+            keyExtractor={(item) => item.id.toString()}
+            stickySectionHeadersEnabled={false}
+            renderSectionHeader={({ section: { title } }) => (
+              <View style={styles.headerContainer}>
+                <Text style={styles.sectionHeader}>{title}</Text>
+                <View style={styles.headerLine} />
+              </View>
+            )}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.item}
+                onPress={() =>
+                  router.push({
+                    pathname: '/screens/customer-details',
+                    params: { customer: JSON.stringify(item) }
+                  })
+                }
+                onLongPress={() => handleLongPress(item)}
+              >
+                <Text style={styles.itemText}>
+                  {item.first_name} {item.last_name}
+                </Text>
+              </TouchableOpacity>
+            )}
+            // Handle scrolling to items not yet rendered (important for infinite scroll)
+            onScrollToIndexFailed={(info) => {
+              sectionListRef.current?.scrollToLocation({
+                sectionIndex: info.index,
+                itemIndex: 0,
+                animated: false,
+              });
+            }}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.3}
+            ListFooterComponent={
+              isMoreLoading ? (
+                <ActivityIndicator style={{ marginVertical: 20 }} size="small" color="#1D2671" />
+              ) : <View style={{ height: 50 }} />
+            }
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No customers found.</Text>
+            }
+          />
+        )}
+
+        {/* Componentized Sidebar */}
+        <AlphabetSidebar onLetterPress={scrollToLetter} />
+      </View>
+
+      <ActionModal
+        visible={modalVisible}
+        customerName={selectedCustomer ? `${selectedCustomer.first_name} ${selectedCustomer.last_name}` : ""}
+        onClose={() => setModalVisible(false)}
+        onDelete={() => { /* Handle Delete API call here */ setModalVisible(false); }}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F1F0ED' },
-  header: { padding: 20, paddingTop: 60, backgroundColor: '#FFF' },
-  headerTitle: { 
-    fontSize: 24, 
-    fontFamily: 'LeagueSpartan-Bold', 
-    color: '#0D0F66', 
-    marginBottom: 15 
+  container: {
+    flex: 1,
+    backgroundColor: 'white',
+    paddingTop: 5,
   },
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  searchInput: { 
-    flex: 1, 
-    backgroundColor: '#F5F5F5', 
-    borderRadius: 12, 
-    paddingHorizontal: 15, 
-    height: 48,
+  searchContainer: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+  },
+  searchBar: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 25,
     borderWidth: 1,
-    borderColor: '#DDD'
+    borderColor: '#ADB5BD',
+    elevation: 0,
+    height: 45,
   },
-  listContent: { padding: 15, paddingBottom: 100 },
-  card: { 
-    backgroundColor: '#FFF', 
-    borderRadius: 16, 
-    padding: 16, 
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: '#EAE7E2'
+  searchInputText: {
+    fontSize: 15,
+    minHeight: 0,
+    color: '#11181C'
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  customerName: { fontSize: 18, fontWeight: '700', color: '#333' },
-  dateLabel: { fontSize: 12, color: '#888', marginTop: 2 },
-  divider: { marginVertical: 12, backgroundColor: '#F0F0F0' },
-  detailRow: { flexDirection: 'row', marginBottom: 8 },
-  label: { width: 80, fontSize: 13, color: '#777', fontWeight: '600' },
-  value: { flex: 1, fontSize: 13, color: '#333' },
-  linkText: { color: '#AB8262', textDecorationLine: 'underline' },
-  pagination: { 
-    flexDirection: 'row', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    marginTop: 10,
-    paddingBottom: 20
+  headerContainer: {
+    backgroundColor: 'white',
+    paddingHorizontal: 20,
+    paddingTop: 15,
   },
-  pageIndicator: { fontSize: 14, color: '#666', fontWeight: '500' },
-  emptyText: { textAlign: 'center', marginTop: 50, color: '#999' }
+  sectionHeader: {
+    color: '#999',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 5,
+  },
+  headerLine: {
+    height: 1,
+    backgroundColor: '#F0F0F0',
+    width: '100%',
+  },
+  item: {
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#F0F0F0',
+  },
+  itemText: {
+    fontSize: 16,
+    color: '#1A1A1A',
+  },
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 50,
+    color: '#999',
+    fontSize: 15,
+  }
 });

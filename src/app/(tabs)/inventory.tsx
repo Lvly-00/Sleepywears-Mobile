@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Searchbar, Text } from 'react-native-paper';
 import { ActionDialog } from '../../components/action-dialog';
@@ -10,59 +10,81 @@ import api from '../../services/api';
 export default function InventoryScreen() {
     const [collections, setCollections] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
+    const [loading, setLoading] = useState(true); // Initial load
+    const [refreshing, setRefreshing] = useState(false); // Pull to refresh
+    const [isMoreLoading, setIsMoreLoading] = useState(false); // Infinite scroll loading
+    const [nextCursor, setNextCursor] = useState<string | null>(null);
     const [isFabExtended, setIsFabExtended] = useState(true);
 
     const [selectedItem, setSelectedItem] = useState<any>(null);
     const [showActions, setShowActions] = useState(false);
 
-    const fetchCollections = async () => {
-        try {
-            const res = await api.get('/collections');
-            const data = Array.isArray(res.data?.data) ? res.data.data : [];
+    // Use a ref for search timeout to debounce API calls
+    const searchTimeout = useRef<NodeJS.Timeout | null>(null);
 
-            const sortedData = data.sort((a: any, b: any) => {
-                if (a.status === 'Active' && b.status === 'Sold Out') return -1;
-                if (a.status === 'Sold Out' && b.status === 'Active') return 1;
-                return 0;
+    const fetchCollections = async (cursor: string | null = null, isRefreshing = false) => {
+        if (cursor) setIsMoreLoading(true);
+        else if (!isRefreshing) setLoading(true);
+
+        try {
+            const res = await api.get('/collections', {
+                params: {
+                    cursor: cursor,
+                    search: searchQuery || undefined, // Send search to backend
+                    per_page: 15
+                }
             });
 
-            setCollections(sortedData);
+            const newData = res.data.data || [];
+            const cursorUrl = res.data.next_page_url;
+            
+            // Extract the cursor string from the full URL provided by Laravel
+            const nextCursorStr = cursorUrl ? new URL(cursorUrl).searchParams.get('cursor') : null;
+
+            setCollections(prev => cursor ? [...prev, ...newData] : newData);
+            setNextCursor(nextCursorStr);
         } catch (err) {
             console.error('Fetch error:', err);
         } finally {
             setLoading(false);
             setRefreshing(false);
+            setIsMoreLoading(false);
         }
     };
 
-    useEffect(() => { fetchCollections(); }, []);
+    // Initial Load & Search Trigger
+    useEffect(() => {
+        // Debounce search to avoid spamming the server while typing
+        if (searchTimeout.current) clearTimeout(searchTimeout.current);
+        
+        searchTimeout.current = setTimeout(() => {
+            fetchCollections(null, false);
+        }, 500); // 500ms delay
+
+        return () => { if (searchTimeout.current) clearTimeout(searchTimeout.current); };
+    }, [searchQuery]);
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
-        fetchCollections();
-    }, []);
+        fetchCollections(null, true);
+    }, [searchQuery]);
 
-    const filteredCollections = useMemo(() => {
-        return collections.filter(item =>
-            item.name.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-    }, [searchQuery, collections]);
+    const handleLoadMore = () => {
+        // Only load more if we have a cursor and aren't already loading
+        if (nextCursor && !isMoreLoading) {
+            fetchCollections(nextCursor);
+        }
+    };
 
     const handleLongPress = (item: any) => {
         setSelectedItem(item);
         setShowActions(true);
     };
 
-    // ✅ FIXED navigation (PASS NAME HERE)
     const handleCardPress = (item: any) => {
         router.push({
             pathname: '/screens/items',
-            params: {
-                collectionId: item.id,
-                collectionName: item.name,
-            },
+            params: { collectionId: item.id, collectionName: item.name },
         });
     };
 
@@ -98,25 +120,37 @@ export default function InventoryScreen() {
                     onChangeText={setSearchQuery}
                     value={searchQuery}
                     style={styles.searchBar}
-                    inputStyle={styles.searchInput}
+                    inputStyle={styles.searchInputText}
                 />
 
                 {loading ? (
-                    <ActivityIndicator style={{ marginTop: 50 }} />
+                    <ActivityIndicator style={{ marginTop: 50 }} color="#0A1D56" />
                 ) : (
                     <FlatList
-                        data={filteredCollections}
+                        data={collections} // Use full list from state
                         onScroll={onScroll}
                         keyExtractor={(item) => item.id.toString()}
                         renderItem={({ item }) => (
                             <CollectionCard
                                 item={item}
-                                onPress={() => handleCardPress(item)} // ✅ USE FIXED FUNCTION
+                                onPress={() => handleCardPress(item)}
                                 onLongPress={() => handleLongPress(item)}
                             />
                         )}
-                        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-                        ListEmptyComponent={<Text style={styles.emptyText}>No collections found.</Text>}
+                        refreshControl={
+                            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                        }
+                        // Infinite Scroll Props
+                        onEndReached={handleLoadMore}
+                        onEndReachedThreshold={0.2} // Trigger when 20% from bottom
+                        ListFooterComponent={
+                            isMoreLoading ? (
+                                <ActivityIndicator style={{ marginVertical: 20 }} color="#0A1D56" />
+                            ) : null
+                        }
+                        ListEmptyComponent={
+                            !loading ? <Text style={styles.emptyText}>No collections found.</Text> : null
+                        }
                         contentContainerStyle={{ paddingBottom: 100 }}
                     />
                 )}
@@ -132,7 +166,7 @@ export default function InventoryScreen() {
                         pathname: '/screens/edit-collection',
                         params: {
                             collectionId: selectedItem.id,
-                            collectionName: selectedItem.name, 
+                            collectionName: selectedItem.name,
                         },
                     });
                 }}
@@ -153,11 +187,6 @@ const styles = StyleSheet.create({
         elevation: 0,
         height: 45,
     },
-    searchInput: { minHeight: 0, color: '#11181C' },
-    emptyText: {
-        textAlign: 'center',
-        marginTop: 50,
-        color: '#7A7A7A',
-        fontSize: 16
-    },
+    searchInputText: { fontSize: 15, minHeight: 0, color: '#11181C' },
+    emptyText: { textAlign: 'center', marginTop: 50, color: '#7A7A7A', fontSize: 16 },
 });

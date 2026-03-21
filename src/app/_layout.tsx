@@ -164,8 +164,24 @@ export default function RootLayout() {
 
             }} />
 
+
+            <Stack.Screen name="screens/customer-details" options={{
+              presentation: 'fullScreenModal',
+              title: 'View Customer',
+              headerStyle: {
+                backgroundColor: '#0A0B32',
+              },
+              headerTintColor: '#fff',
+              headerTitleStyle: {
+                fontWeight: 800,
+                fontSize: 30,
+              },
+              headerTitleAlign: 'left',
+
+            }} />
           </Stack>
 
+    
 
           <StatusBar style="auto" />
         </ThemeProvider>

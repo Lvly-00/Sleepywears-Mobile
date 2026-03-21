@@ -102,7 +102,7 @@ export default function DashboardScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         {/* 1. WELCOME HEADER */}
         <View style={styles.header}>
-          <Text style={styles.greeting}>Hello, Miku!</Text>
+          {/* <Text style={styles.greeting}>Hello, Miku!</Text> */}
           <Text style={styles.subGreeting}>Here is what's happening in {monthName}.</Text>
         </View>
 
