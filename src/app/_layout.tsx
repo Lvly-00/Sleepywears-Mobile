@@ -8,6 +8,7 @@ import { useColorScheme } from '../hooks/use-color-scheme';
 
 
 
+
 export const unstable_settings = {
   anchor: '(tabs)',
 };
@@ -179,9 +180,54 @@ export default function RootLayout() {
               headerTitleAlign: 'left',
 
             }} />
+
+            <Stack.Screen name="screens/profile-information" options={{
+              presentation: 'fullScreenModal',
+              title: 'Profile Information',
+              headerStyle: {
+                backgroundColor: '#0A0B32',
+              },
+              headerTintColor: '#fff',
+              headerTitleStyle: {
+                fontWeight: 800,
+                fontSize: 30,
+              },
+              headerTitleAlign: 'left',
+
+            }} />
+
+            <Stack.Screen name="screens/update-password" options={{
+              presentation: 'fullScreenModal',
+              title: 'Update Password',
+              headerStyle: {
+                backgroundColor: '#0A0B32',
+              },
+              headerTintColor: '#fff',
+              headerTitleStyle: {
+                fontWeight: 800,
+                fontSize: 30,
+              },
+              headerTitleAlign: 'left',
+
+            }} />
+
+             <Stack.Screen name="screens/notification-center" options={{
+              presentation: 'fullScreenModal',
+              title: 'Notification Center',
+              headerStyle: {
+                backgroundColor: '#0A0B32',
+              },
+              headerTintColor: '#fff',
+              headerTitleStyle: {
+                fontWeight: 800,
+                fontSize: 30,
+              },
+              headerTitleAlign: 'left',
+
+            }} />
           </Stack>
 
-    
+
 
           <StatusBar style="auto" />
         </ThemeProvider>
