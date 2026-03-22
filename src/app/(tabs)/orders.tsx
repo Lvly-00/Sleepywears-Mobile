@@ -1,307 +1,237 @@
-import AddPaymentModal from '@/src/components/add-payment-modal';
 import api from '@/src/services/api';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
-} from 'react-native';
-import { Badge, Button, IconButton, Provider, Surface } from 'react-native-paper';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { Provider, Searchbar } from 'react-native-paper';
 
-// --- Types ---
-interface Order {
-  id: number;
-  formatted_id: string;
-  first_name: string;
-  last_name: string;
-  order_date: string;
-  total: number;
-  items_count?: number;
-  payment?: {
-    payment_status: 'Paid' | 'Unpaid';
-    payment_method?: string;
-    additional_fee?: number;
-  };
-}
+// Internal Components
+import AddPaymentModal from '../../components/add-payment-modal';
+import { OrderActionModal } from '../../components/order-action-modal';
+import { DeleteConfirmModal } from '../../components/order-delete-confirmation';
+import OrderItem from '../../components/order-item';
+import FabScreenWrapper from '../../components/ui/fab-screen-wrapper';
 
 export default function OrdersScreen() {
-  // --- State ---
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [isExtended, setIsExtended] = useState(true);
 
-  // Modal State
-  const [isModalVisible, setModalVisible] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  // MODAL STATES
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [actionVisible, setActionVisible] = useState(false);
+  const [deleteVisible, setDeleteVisible] = useState(false);
+  const [paymentVisible, setPaymentVisible] = useState(false);
 
-  // --- Fetch Orders ---
-  const fetchOrders = async (page: number, searchTerm: string, isRefreshing = false) => {
-    if (isRefreshing) setRefreshing(true);
-    else setLoading(true);
+  // LOCK to prevent duplicate calls during infinite scroll
+  const isFetching = useRef(false);
+
+  const fetchOrders = async (cursor: string | null = null, searchTerm: string, isRefresh = false) => {
+    if (isFetching.current) return;
+    isFetching.current = true;
+
+    if (!cursor) {
+      if (!isRefresh) setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
 
     try {
       const res = await api.get("/orders", {
-        params: {
-          page,
-          per_page: 10,
-          search: searchTerm.trim() || undefined,
-        },
+        params: { cursor: cursor || undefined, search: searchTerm, per_page: 15 }
       });
 
-      const data = res.data.data || [];
-      setOrders(data);
-      setTotalPages(res.data.last_page || 1);
+      const newData = res.data.data;
+
+      setOrders(prev => {
+        if (!cursor) return newData;
+        // Prevent "Duplicate Key" errors by checking if ID already exists
+        const existingIds = new Set(prev.map(o => o.id));
+        const filteredNewData = newData.filter((o: any) => !existingIds.has(o.id));
+        return [...prev, ...filteredNewData];
+      });
+
+      setNextCursor(res.data.next_cursor);
     } catch (err) {
-      console.error("Error fetching orders:", err);
-      Alert.alert("Error", "Failed to load orders.");
+      console.error("Fetch error:", err);
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
+      isFetching.current = false;
     }
   };
 
   useEffect(() => {
-    fetchOrders(currentPage, search);
-  }, [currentPage]);
+    fetchOrders(null, search);
+  }, []);
 
-  // --- Handlers ---
-  const handleSearch = () => {
-    setCurrentPage(1);
-    fetchOrders(1, search);
+  // HANDLERS
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchOrders(null, search, true);
+  }, [search]);
+
+  const loadMore = useCallback(() => {
+    if (!loadingMore && nextCursor && !isFetching.current) {
+      fetchOrders(nextCursor, search);
+    }
+  }, [loadingMore, nextCursor, search]);
+
+  const onScroll = ({ nativeEvent }: any) => {
+    const currentScrollOffset = nativeEvent.contentOffset.y;
+    setIsExtended(currentScrollOffset <= 0);
   };
 
-  const handleOpenPayment = (order: Order) => {
-    setSelectedOrder(order);
-    setModalVisible(true);
+  const handleOrderPress = useCallback((item: any) => {
+    router.push({ pathname: '/screens/invoice', params: { orderData: JSON.stringify(item) } });
+  }, []);
+
+  const handleLongPress = useCallback((item: any) => {
+    setSelectedOrder(item);
+    setActionVisible(true);
+  }, []);
+
+  /**
+   * FIX: Modal Transition
+   * We must close the Action Modal and wait for its animation to finish 
+   * before opening the next Modal (Add Payment or Delete).
+   */
+  const handleOpenAddPayment = () => {
+    setActionVisible(false);
+    setTimeout(() => {
+      setPaymentVisible(true);
+    }, 350); // 350ms delay for smooth transition
   };
 
-  // Update local state when an order is updated (paid)
-  const handleOrderUpdated = (updatedOrder: Order) => {
-    setOrders((prevOrders) =>
-      prevOrders.map((ord) => (ord.id === updatedOrder.id ? updatedOrder : ord))
-    );
+  const handleOpenDeleteConfirm = () => {
+    setActionVisible(false);
+    setTimeout(() => {
+      setDeleteVisible(true);
+    }, 350);
   };
 
-  const handleDelete = (order: Order) => {
-    Alert.alert(
-      "Delete Order",
-      `Are you sure you want to delete ${order.formatted_id}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Delete", 
-          style: "destructive", 
-          onPress: async () => {
-            try {
-              await api.delete(`/orders/${order.id}`);
-              // If last item on page is deleted, go back a page
-              if (orders.length === 1 && currentPage > 1) {
-                setCurrentPage(currentPage - 1);
-              } else {
-                fetchOrders(currentPage, search);
-              }
-            } catch (err) {
-              Alert.alert("Error", "Failed to delete order.");
-            }
-          } 
-        }
-      ]
-    );
+  const confirmDelete = async () => {
+    try {
+      await api.delete(`/orders/${selectedOrder.id}`);
+      setDeleteVisible(false);
+      onRefresh(); // Reload list
+    } catch (err) {
+      console.error("Delete error:", err);
+    }
   };
 
-  // --- Render Item ---
-  const renderOrderItem = ({ item }: { item: Order }) => {
-    const isPaid = item.payment?.payment_status === "Paid";
-    
-    return (
-      <Surface style={styles.card} elevation={1}>
-        <TouchableOpacity 
-          onPress={() => router.push({
-            pathname: '/screens/invoice',
-            params: { orderData: JSON.stringify(item) }
-          })}
-        >
-          {/* Header: ID and Date */}
-          <View style={styles.cardHeader}>
-            <Text style={styles.orderId}>{item.formatted_id}</Text>
-            <Text style={styles.date}>
-              {new Date(item.order_date).toLocaleDateString(undefined, {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
-              })}
-            </Text>
-          </View>
-
-          {/* Body: Customer Name */}
-          <Text style={styles.customerName}>{item.first_name} {item.last_name}</Text>
-
-          {/* Footer: Price and Status */}
-          <View style={styles.cardFooter}>
-            <View>
-              <Text style={styles.priceLabel}>Total Price</Text>
-              <Text style={styles.price}>₱{Math.round(item.total).toLocaleString()}</Text>
-            </View>
-
-            <View style={styles.actionContainer}>
-              <Badge 
-                style={[
-                    styles.badge, 
-                    { 
-                        backgroundColor: isPaid ? "#A5BDAE" : "#D9D9D9", 
-                        color: isPaid ? "#1E4620" : "#7A7A7A" 
-                    }
-                ]}
-              >
-                {item.payment?.payment_status || "Unpaid"}
-              </Badge>
-              
-              <View style={styles.iconGroup}>
-                 {!isPaid && (
-                    <IconButton 
-                        icon="cash-plus" 
-                        size={22} 
-                        iconColor="#276D58" 
-                        onPress={() => handleOpenPayment(item)} 
-                        containerColor="#E8F5E9"
-                        style={{ marginRight: 8 }}
-                    />
-                 )}
-                 <IconButton 
-                    icon="trash-can-outline" 
-                    size={22} 
-                    iconColor="#9E2626" 
-                    onPress={() => handleDelete(item)} 
-                    containerColor="#FFEBEE"
-                />
-              </View>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Surface>
-    );
-  };
+  const renderItem = useCallback(({ item }: { item: any }) => (
+    <OrderItem
+      item={item}
+      onPress={handleOrderPress}
+      onLongPress={handleLongPress}
+    />
+  ), [handleOrderPress, handleLongPress]);
 
   return (
     <Provider>
-      <View style={styles.container}>
-        {/* Search Header */}
-        <View style={styles.header}>
-          <View style={styles.searchRow}>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search by ID or Name..."
-              value={search}
-              onChangeText={setSearch}
-              onSubmitEditing={handleSearch}
-              returnKeyType="search"
+      <FabScreenWrapper
+        fabLabel="Add Order"
+        onFabPress={() => router.push('/screens/create-order')}
+        isExtended={isExtended}
+        fabBackgroundColor="#0A256C"
+      >
+        <View style={styles.container}>
+          <Searchbar
+            placeholder="Search Order..."
+            placeholderTextColor={'#7A7A7A'}
+            onChangeText={(t) => { setSearch(t); fetchOrders(null, t); }}
+            value={search}
+            inputStyle={styles.searchInputText}
+            style={styles.searchBar}
+          />
+
+          {loading && orders.length === 0 ? (
+            <ActivityIndicator style={{ marginTop: 50 }} color="#0A256C" size="large" />
+          ) : (
+            <FlatList
+              data={orders}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={renderItem}
+              onScroll={onScroll}
+              onEndReached={loadMore}
+              onEndReachedThreshold={0.5}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+              contentContainerStyle={styles.listContent}
+              ItemSeparatorComponent={() => <View style={styles.separator} />}
+              ListFooterComponent={() => loadingMore ? <ActivityIndicator style={{ margin: 20 }} color="#0A256C" /> : null}
+              ListEmptyComponent={<Text style={styles.emptyText}>No orders found.</Text>}
+              // Performance items
+              removeClippedSubviews={true}
+              initialNumToRender={10}
+              maxToRenderPerBatch={10}
+              windowSize={5}
             />
-            <Button 
-              mode="contained" 
-              style={styles.addBtn} 
-              onPress={() => router.push('/screens/create-order')}
-            >
-              + Add
-            </Button>
-          </View>
+          )}
         </View>
 
-        {loading && orders.length === 0 ? (
-          <ActivityIndicator color="#AB8262" size="large" style={{ marginTop: 50 }} />
-        ) : (
-          <FlatList
-            data={orders}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={renderOrderItem}
-            contentContainerStyle={styles.listContent}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={() => fetchOrders(1, search, true)} />
-            }
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>No orders found.</Text>
-            }
-            ListFooterComponent={
-              totalPages > 1 ? (
-                <View style={styles.pagination}>
-                    <IconButton 
-                        icon="chevron-left" 
-                        disabled={currentPage === 1} 
-                        onPress={() => setCurrentPage(prev => prev - 1)} 
-                    />
-                    <Text style={styles.pageInfo}>Page {currentPage} of {totalPages}</Text>
-                    <IconButton 
-                        icon="chevron-right" 
-                        disabled={currentPage === totalPages} 
-                        onPress={() => setCurrentPage(prev => prev + 1)} 
-                    />
-                </View>
-              ) : null
-            }
-          />
-        )}
-
-        {/* The Payment Modal */}
-        <AddPaymentModal
-          visible={isModalVisible}
-          onClose={() => setModalVisible(false)}
-          order={selectedOrder}
-          onOrderUpdated={handleOrderUpdated}
+        {/* 1. INITIAL ACTION MODAL ( 설계 1 Reference ) */}
+        <OrderActionModal
+          visible={actionVisible}
+          customerName={selectedOrder ? `${selectedOrder.first_name} ${selectedOrder.last_name}` : ""}
+          onClose={() => setActionVisible(false)}
+          onAddPayment={handleOpenAddPayment}
+          onDeletePress={handleOpenDeleteConfirm}
         />
-      </View>
+
+        {/* 2. DELETE CONFIRMATION ( 설계 2 Reference ) */}
+        <DeleteConfirmModal
+          visible={deleteVisible}
+          customerName={selectedOrder ? `${selectedOrder.first_name} ${selectedOrder.last_name}` : ""}
+          onClose={() => setDeleteVisible(false)}
+          onConfirm={confirmDelete}
+        />
+
+        {/* 3. ADD PAYMENT MODAL */}
+        <AddPaymentModal
+          visible={paymentVisible}
+          onClose={() => setPaymentVisible(false)}
+          order={selectedOrder}
+          onOrderUpdated={onRefresh}
+        />
+      </FabScreenWrapper>
     </Provider>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F1F0ED' },
-  header: { padding: 20, paddingTop: 60, backgroundColor: '#FFF', elevation: 2 },
-  searchRow: { flexDirection: 'row', gap: 10 },
-  searchInput: { 
-    flex: 1, 
-    backgroundColor: '#F5F5F5', 
-    borderRadius: 10, 
-    paddingHorizontal: 15, 
-    height: 45,
+  container: { flex: 1, backgroundColor: '#FFF' },
+  searchBar: {
+    margin: 15,
+    borderRadius: 25,
     borderWidth: 1,
-    borderColor: '#DDD'
+    borderColor: '#ADB5BD',
+    backgroundColor: '#FFF',
+    elevation: 0,
+    height: 45,
   },
-  addBtn: { backgroundColor: '#0D0F66', borderRadius: 10, justifyContent: 'center' },
-  listContent: { padding: 15, paddingBottom: 100 },
-  card: { 
-    backgroundColor: '#FFF', 
-    borderRadius: 15, 
-    padding: 15, 
-    marginBottom: 12,
-    borderLeftWidth: 6,
-    borderLeftColor: '#AB8262' 
+  searchInputText: {
+    fontSize: 15,
+    minHeight: 0,
+    color: '#11181C'
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 },
-  orderId: { fontSize: 14, fontWeight: 'bold', color: '#AB8262' },
-  date: { fontSize: 12, color: '#888' },
-  customerName: { fontSize: 19, fontWeight: '700', color: '#333', marginVertical: 4 },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 10 },
-  priceLabel: { fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 0.5 },
-  price: { fontSize: 20, fontWeight: '700', color: '#0D0F66' },
-  actionContainer: { alignItems: 'flex-end' },
-  badge: { borderRadius: 6, width: 85, marginBottom: 8, fontWeight: 'bold' },
-  iconGroup: { flexDirection: 'row' },
-  pagination: { 
-    flexDirection: 'row', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    marginTop: 10,
-    marginBottom: 30 
+
+  listContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 120
   },
-  pageInfo: { fontSize: 14, color: '#666', fontWeight: '500' },
-  emptyText: { textAlign: 'center', marginTop: 50, color: '#999', fontSize: 16 }
+  separator: {
+    height: 1,
+    backgroundColor: '#F0F0F0'
+  },
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 50,
+    color: '#7A7A7A',
+    fontSize: 16
+  }
 });

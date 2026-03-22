@@ -1,52 +1,56 @@
 import api from '@/src/services/api';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import {
-    ActivityIndicator, Dimensions,
-    FlatList,
-    Image,
-    StyleSheet, Text,
-    TouchableOpacity,
-    View
-} from 'react-native';
-import { Button, IconButton, Menu, Provider } from 'react-native-paper';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { Provider } from 'react-native-paper';
 
-const { width } = Dimensions.get('window');
-const COLUMN_WIDTH = (width - 40) / 2; // 2 Columns with padding
+// 1. IMPORT the types instead of defining them locally
+import { Collection, CollectionDropdown, Item } from '../../components/collection-dropdown';
+import { ItemCard } from '../../components/item-card';
+import { OrderFooter } from '../../components/order-footer';
 
-// ----------------------------------------------------------------------
-// HELPER: Image URL Formatter (Ported from Web)
-// ----------------------------------------------------------------------
-const fixImageUrl = (url) => {
-    if (!url) return null;
-    if (url.startsWith("items/") || !url.includes(".")) {
-        return `https://res.cloudinary.com/dz0q8u0ia/image/upload/f_auto,q_auto/${url}`;
-    }
-    if (url.startsWith("http")) return url;
-    return `https://your-api-url.com/storage/${url.replace(/^public\//, "")}`;
-};
+// REMOVE the local interfaces from here:
+// interface Item { ... } 
+// interface Collection { ... }
+
 
 export default function CreateOrderScreen() {
-    const [collections, setCollections] = useState([]);
-    const [selectedCollection, setSelectedCollection] = useState(null);
-    const [menuVisible, setMenuVisible] = useState(false);
-    const [items, setItems] = useState([]);
-    const [selectedItems, setSelectedItems] = useState([]);
+    const [collections, setCollections] = useState<Collection[]>([]);
+    const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
+    const [items, setItems] = useState<Item[]>([]);
+    const [selectedItems, setSelectedItems] = useState<Item[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Fetch Collections (Similar to Web logic)
     const fetchCollections = async () => {
         try {
             const res = await api.get('/collections');
             const dataArray = Array.isArray(res.data) ? res.data : res.data.data || [];
-            
-            const activeCollections = dataArray
-                .filter((c) => c.status === "Active")
-                .map((c) => ({
+
+            console.log("--- DEBUG START ---");
+            dataArray.forEach((c: any, index: number) => {
+                console.log(`Collection ${index} [${c.name}]:`);
+                console.log(`  - Status: "${c.status}"`);
+                console.log(`  - Items Count: ${c.items?.length || 0}`);
+                if (c.items && c.items.length > 0) {
+                    console.log(`  - Sample Item Status: "${c.items[0].status}"`);
+                }
+            });
+            console.log("--- DEBUG END ---");
+
+            // More permissive filtering for testing
+            const activeCollections: Collection[] = dataArray
+                .filter((c: any) => {
+                    const isActive = c.status?.toLowerCase() === "active";
+                    // If you want to see collections even if items are empty for now:
+                    return isActive;
+                })
+                .map((c: any) => ({
                     ...c,
-                    items: (c.items || []).filter(i => i.status === "Available")
-                }))
-                .filter((c) => c.items.length > 0);
+                    // Make the item filter more lenient
+                    items: (c.items || []).filter((i: any) =>
+                        !i.status || i.status.toLowerCase() === "available"
+                    )
+                }));
 
             setCollections(activeCollections);
             if (activeCollections.length > 0) {
@@ -58,17 +62,19 @@ export default function CreateOrderScreen() {
             setLoading(false);
         }
     };
-
     useEffect(() => { fetchCollections(); }, []);
 
-    // Fetch Items when collection changes
     useEffect(() => {
         if (selectedCollection) {
             setItems(selectedCollection.items || []);
         }
     }, [selectedCollection]);
 
-    const handleItemToggle = (item) => {
+    const subtotal = useMemo(() => {
+        return selectedItems.reduce((acc, item) => acc + Number(item.price), 0);
+    }, [selectedItems]);
+
+    const handleItemToggle = (item: Item) => {
         const isSelected = selectedItems.find(i => i.id === item.id);
         if (isSelected) {
             setSelectedItems(prev => prev.filter(i => i.id !== item.id));
@@ -78,184 +84,85 @@ export default function CreateOrderScreen() {
     };
 
     const handlePlaceOrder = () => {
-        const orderCode = "ORD-" + Math.floor(100000 + Math.random() * 900000);
         router.push({
             pathname: '/screens/confirm-order',
-            params: { orderCode, items: JSON.stringify(selectedItems) }
+            params: { items: JSON.stringify(selectedItems) }
         });
-    };
-
-    const renderItem = ({ item }) => {
-        const isSelected = selectedItems.some(i => i.id === item.id);
-        
-        return (
-            <TouchableOpacity 
-                activeOpacity={0.8}
-                onPress={() => handleItemToggle(item)}
-                style={[
-                    styles.card, 
-                    isSelected && styles.cardSelected
-                ]}
-            >
-                {/* Image Section (Portrait 4:5 Aspect Ratio) */}
-                <View style={styles.imageContainer}>
-                    <Image 
-                        source={{ uri: fixImageUrl(item.image) }} 
-                        style={styles.image}
-                        resizeMode="cover"
-                    />
-                    {isSelected && (
-                        <View style={styles.checkmarkOverlay}>
-                            <IconButton icon="check-circle" iconColor="#AB8262" size={30} />
-                        </View>
-                    )}
-                </View>
-
-                {/* Info Section */}
-                <View style={styles.cardInfo}>
-                    <Text numberOfLines={1} style={styles.itemCode}>
-                        {item.item_code || item.code} <Text style={{color: '#DDD'}}>|</Text> {item.name}
-                    </Text>
-                    <Text style={styles.itemPrice}>₱{item.price}</Text>
-                </View>
-            </TouchableOpacity>
-        );
     };
 
     if (loading) {
         return (
-            <View style={styles.centered}><ActivityIndicator color="#AB8262" size="large" /></View>
+            <View style={styles.centered}>
+                <ActivityIndicator color="#8B5E34" size="large" />
+            </View>
         );
     }
 
     return (
         <Provider>
             <View style={styles.container}>
-                {/* Header / Dropdown Area */}
-                <View style={styles.header}>
-                    <Text style={styles.label}>Select Collection</Text>
-                    <Menu
-                        visible={menuVisible}
-                        onDismiss={() => setMenuVisible(false)}
-                        anchor={
-                            <Button
-                                mode="outlined"
-                                onPress={() => setMenuVisible(true)}
-                                style={styles.dropdown}
-                                contentStyle={styles.dropdownContent}
-                                labelStyle={styles.dropdownLabel}
-                                icon="chevron-down"
-                            >
-                                {selectedCollection ? selectedCollection.name : 'Choose Collection'}
-                            </Button>
-                        }
-                    >
-                        {collections.map((c) => (
-                            <Menu.Item 
-                                key={c.id} 
-                                onPress={() => { setSelectedCollection(c); setMenuVisible(false); }} 
-                                title={c.name} 
-                            />
-                        ))}
-                    </Menu>
-                </View>
+                <CollectionDropdown
+                    collections={collections}
+                    selected={selectedCollection}
+                    onSelect={(collection: Collection) => setSelectedCollection(collection)}
+                />
 
-                {/* Items Grid */}
                 <FlatList
                     data={items}
                     keyExtractor={(item) => item.id.toString()}
-                    numColumns={2}
-                    renderItem={renderItem}
+                    numColumns={3}
+                    columnWrapperStyle={styles.columnWrapper}
+                    renderItem={({ item }) => (
+                        <ItemCard
+                            item={item}
+                            isSelected={selectedItems.some(i => i.id === item.id)}
+                            isSelectionMode={true}
+                            onPress={() => handleItemToggle(item)}
+                            onLongPress={() => { }}
+                        />
+                    )}
                     contentContainerStyle={styles.gridContent}
                     ListEmptyComponent={
-                        <Text style={styles.emptyText}>No available items in this collection.</Text>
+                        <Text style={styles.emptyText}>No items available.</Text>
                     }
                 />
 
-                {/* Floating Place Order Button */}
-                {selectedItems.length > 0 && (
-                    <Button
-                        mode="contained"
-                        style={styles.fab}
-                        labelStyle={styles.fabLabel}
-                        onPress={handlePlaceOrder}
-                    >
-                        Place Order ({selectedItems.length})
-                    </Button>
-                )}
+                <OrderFooter
+                    subtotal={subtotal}
+                    count={selectedItems.length}
+                    onPress={handlePlaceOrder}
+                />
             </View>
         </Provider>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F1F0ED' },
-    centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    header: { padding: 20, paddingTop: 50 },
-    label: { 
-        fontSize: 12, 
-        fontFamily: 'LeagueSpartan', 
-        color: '#888', 
-        textTransform: 'uppercase', 
-        marginBottom: 8,
-        letterSpacing: 1
-    },
-    dropdown: { backgroundColor: '#FFF', borderColor: '#AB8262', borderRadius: 12 },
-    dropdownContent: { flexDirection: 'row-reverse', height: 50, justifyContent: 'space-between' },
-    dropdownLabel: { color: '#333', fontSize: 16 },
-    gridContent: { paddingHorizontal: 10, paddingBottom: 100 },
-    
-    // Card Styling
-    card: {
-        backgroundColor: '#FFF',
-        width: COLUMN_WIDTH,
-        margin: 5,
-        borderRadius: 15,
-        overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: '#EEE',
-        elevation: 2,
-    },
-    cardSelected: {
-        borderColor: '#AB8262',
-        backgroundColor: '#EAE7E2',
-    },
-    imageContainer: {
-        width: '100%',
-        aspectRatio: 1080 / 1350, // Match Mantine AspectRatio
-        backgroundColor: '#f9f9f9',
-    },
-    image: { width: '100%', height: '100%' },
-    checkmarkOverlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(255,255,255,0.4)',
-        justifyContent: 'center',
-        alignItems: 'center'
-    },
-    cardInfo: { padding: 10, alignItems: 'center' },
-    itemCode: { 
-        fontSize: 13, 
-        fontFamily: 'LeagueSpartan-Bold', 
-        textTransform: 'uppercase',
-        textAlign: 'center'
-    },
-    itemPrice: { 
-        fontSize: 16, 
-        color: '#AB8262', 
-        fontFamily: 'LeagueSpartan', 
-        marginTop: 4 
+    container: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
     },
 
-    // Floating Button
-    fab: {
-        position: 'absolute',
-        bottom: 30,
-        left: 20,
-        right: 20,
-        backgroundColor: '#AB8262',
-        borderRadius: 15,
-        elevation: 8,
+    centered: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
-    fabLabel: { fontSize: 16, paddingVertical: 8, fontWeight: 'bold' },
-    emptyText: { textAlign: 'center', marginTop: 50, color: '#999', fontSize: 16 }
+
+    gridContent: {
+        paddingHorizontal: 10,
+        paddingTop: 10,
+        paddingBottom: 100,
+    },
+
+    columnWrapper: {
+        justifyContent: 'flex-start',
+        gap: 10,
+    },
+
+    emptyText: {
+        textAlign: 'center',
+        marginTop: 50,
+        color: '#999',
+    },
 });

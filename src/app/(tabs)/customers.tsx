@@ -4,8 +4,8 @@ import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshControl, SectionList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ActivityIndicator, Searchbar } from 'react-native-paper';
-import { AlphabetSidebar } from '../../components/alphabet-sidebar'; // Import the new component
-import { ActionModal } from '../../components/customers-action-modal';
+import { AlphabetSidebar } from '../../components/alphabet-sidebar';
+import { ActionModal } from '../../components/customers-delete-confirmation';
 
 export default function CustomerLogsScreen() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -18,24 +18,8 @@ export default function CustomerLogsScreen() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
-  // Refs
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sectionListRef = useRef<SectionList>(null);
-
-  // 1. Functional Scrolling Logic
-  const scrollToLetter = (letter: string) => {
-    // Find the first section that is equal to or greater than the letter (alphabetically)
-    const sectionIndex = sections.findIndex(section => section.title >= letter);
-
-    if (sectionIndex !== -1) {
-      sectionListRef.current?.scrollToLocation({
-        sectionIndex,
-        itemIndex: 0,
-        animated: true,
-        viewOffset: 0,
-      });
-    }
-  };
 
   const fetchCustomers = async (cursor: string | null = null, isRefreshing = false) => {
     if (cursor) setIsMoreLoading(true);
@@ -53,8 +37,12 @@ export default function CustomerLogsScreen() {
       const newData = res.data.data || [];
       const cursorUrl = res.data.next_page_url;
 
-      // Extract cursor string from Laravel URL
-      const nextCursorStr = cursorUrl ? new URL(cursorUrl).searchParams.get('cursor') : null;
+      // Extract cursor more safely
+      let nextCursorStr = null;
+      if (cursorUrl) {
+        const urlObj = new URL(cursorUrl, 'http://dummy.com'); // Base URL avoids parsing errors
+        nextCursorStr = urlObj.searchParams.get('cursor');
+      }
 
       setCustomers(prev => cursor ? [...prev, ...newData] : newData);
       setNextCursor(nextCursorStr);
@@ -67,14 +55,33 @@ export default function CustomerLogsScreen() {
     }
   };
 
+  // --- NEW DELETE LOGIC ---
+  const handleDeleteCustomer = async () => {
+    if (!selectedCustomer) return;
+
+    try {
+      // 1. Call API
+      await api.delete(`/customers/${selectedCustomer.id}`);
+
+      // 2. Local Update: Filter out the deleted customer from state
+      setCustomers(prev => prev.filter(c => c.id !== selectedCustomer.id));
+
+      // 3. UI Cleanup
+      setModalVisible(false);
+      setSelectedCustomer(null);
+      // Alert.alert("Success", "Customer deleted successfully.");
+    } catch (err) {
+      console.error("Delete error:", err);
+      // Alert.alert("Error", "Failed to delete customer.");
+    }
+  };
+
   // Debounced Search
   useEffect(() => {
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
-
     searchTimeout.current = setTimeout(() => {
       fetchCustomers(null, false);
     }, 500);
-
     return () => { if (searchTimeout.current) clearTimeout(searchTimeout.current); };
   }, [search]);
 
@@ -89,10 +96,9 @@ export default function CustomerLogsScreen() {
     }
   };
 
-  // Memoized Sections
   const sections = useMemo(() => {
     const groups = customers.reduce((acc, obj) => {
-      const key = obj.first_name[0].toUpperCase();
+      const key = obj.first_name?.[0]?.toUpperCase() || '#';
       if (!acc[key]) acc[key] = [];
       acc[key].push(obj);
       return acc;
@@ -103,6 +109,18 @@ export default function CustomerLogsScreen() {
       data: groups[key]
     }));
   }, [customers]);
+
+  const scrollToLetter = (letter: string) => {
+    const sectionIndex = sections.findIndex(section => section.title >= letter);
+    if (sectionIndex !== -1) {
+      sectionListRef.current?.scrollToLocation({
+        sectionIndex,
+        itemIndex: 0,
+        animated: true,
+        viewOffset: 0,
+      });
+    }
+  };
 
   const handleLongPress = (customer: Customer) => {
     setSelectedCustomer(customer);
@@ -119,18 +137,17 @@ export default function CustomerLogsScreen() {
           value={search}
           style={styles.searchBar}
           inputStyle={styles.searchInputText}
-          elevation={0}
         />
       </View>
 
       <View style={{ flex: 1, flexDirection: 'row' }}>
-        {loading ? (
+        {loading && !refreshing ? (
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <ActivityIndicator color="#1D2671" />
           </View>
         ) : (
           <SectionList
-            ref={sectionListRef} // Attach Ref
+            ref={sectionListRef}
             sections={sections}
             keyExtractor={(item) => item.id.toString()}
             stickySectionHeadersEnabled={false}
@@ -143,44 +160,19 @@ export default function CustomerLogsScreen() {
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={styles.item}
-                onPress={() =>
-                  router.push({
-                    pathname: '/screens/customer-details',
-                    params: { customer: JSON.stringify(item) }
-                  })
-                }
+                onPress={() => router.push({ pathname: '/screens/customer-details', params: { customer: JSON.stringify(item) } })}
                 onLongPress={() => handleLongPress(item)}
               >
-                <Text style={styles.itemText}>
-                  {item.first_name} {item.last_name}
-                </Text>
+                <Text style={styles.itemText}>{item.first_name} {item.last_name}</Text>
               </TouchableOpacity>
             )}
-            // Handle scrolling to items not yet rendered (important for infinite scroll)
-            onScrollToIndexFailed={(info) => {
-              sectionListRef.current?.scrollToLocation({
-                sectionIndex: info.index,
-                itemIndex: 0,
-                animated: false,
-              });
-            }}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             onEndReached={handleLoadMore}
             onEndReachedThreshold={0.3}
-            ListFooterComponent={
-              isMoreLoading ? (
-                <ActivityIndicator style={{ marginVertical: 20 }} size="small" color="#1D2671" />
-              ) : <View style={{ height: 50 }} />
-            }
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>No customers found.</Text>
-            }
+            ListFooterComponent={isMoreLoading ? <ActivityIndicator style={{ marginVertical: 20 }} size="small" /> : null}
+            ListEmptyComponent={<Text style={styles.emptyText}>No customers found.</Text>}
           />
         )}
-
-        {/* Componentized Sidebar */}
         <AlphabetSidebar onLetterPress={scrollToLetter} />
       </View>
 
@@ -188,7 +180,7 @@ export default function CustomerLogsScreen() {
         visible={modalVisible}
         customerName={selectedCustomer ? `${selectedCustomer.first_name} ${selectedCustomer.last_name}` : ""}
         onClose={() => setModalVisible(false)}
-        onDelete={() => { /* Handle Delete API call here */ setModalVisible(false); }}
+        onDelete={handleDeleteCustomer} // Fixed: Call the function
       />
     </View>
   );
@@ -205,10 +197,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   searchBar: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 25,
     borderWidth: 1,
     borderColor: '#ADB5BD',
+    backgroundColor: '#FFF',
     elevation: 0,
     height: 45,
   },

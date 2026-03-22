@@ -85,7 +85,7 @@ export default function AccountScreen() {
         />
       </View>
 
-      <Text style={styles.versionText}>Version 1.0.2 (Build 24)</Text>
+      {/* <Text style={styles.versionText}>Version 1.0.2 (Build 24)</Text> */}
     </ScrollView>
   );
 }
