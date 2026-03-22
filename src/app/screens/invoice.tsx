@@ -1,21 +1,19 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as MediaLibrary from 'expo-media-library';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
     Image,
     ScrollView,
-    Share,
     StyleSheet,
     Text,
+    TouchableOpacity,
     View
 } from 'react-native';
-import { Divider, IconButton, Surface } from 'react-native-paper';
+import { Surface } from 'react-native-paper';
 import ViewShot, { captureRef } from 'react-native-view-shot';
-
-// Use a PNG version of your logo if SVG gives issues with ViewShot capture
-import BrownLogo from '../../../assets/images/BrownLogo.svg';
 
 interface NormalizedInvoice {
     display_name: string;
@@ -24,34 +22,73 @@ interface NormalizedInvoice {
     social_handle: string;
     items: any[];
     total: number;
-    payment?: any;
+    payment_method: string;
+    payment_status: string;
+    payment_date: string;
 }
 
 export default function InvoiceScreen() {
     const { orderData } = useLocalSearchParams();
+    const router = useRouter();
+    const navigation = useNavigation();
+    
     const [invoice, setInvoice] = useState<NormalizedInvoice | null>(null);
     const [loading, setLoading] = useState(true);
     const viewShotRef = useRef<any>(null);
+
+    const handleDownload = async () => {
+        try {
+            const { status } = await MediaLibrary.requestPermissionsAsync(true);
+            if (status !== 'granted') {
+                Alert.alert("Permission Denied", "Enable storage access to save.");
+                return;
+            }
+            const uri = await captureRef(viewShotRef, { format: 'png', quality: 1.0 });
+            await MediaLibrary.saveToLibraryAsync(uri);
+            Alert.alert("Success", "Invoice saved to gallery!");
+        } catch (error) {
+            Alert.alert("Error", "Failed to save image.");
+        }
+    };
+
+    useEffect(() => {
+        navigation.setOptions({
+            headerLeft: () => (
+                <TouchableOpacity onPress={() => router.replace('/(tabs)/orders')} style={{ marginLeft: 15 }}>
+                    <MaterialCommunityIcons name="close" size={28} color="white" />
+                </TouchableOpacity>
+            ),
+            headerRight: () => (
+                <TouchableOpacity onPress={handleDownload} style={{ marginRight: 15 }}>
+                    <MaterialCommunityIcons name="download" size={28} color="white" />
+                </TouchableOpacity>
+            ),
+        });
+    }, [navigation]);
 
     useEffect(() => {
         if (orderData) {
             try {
                 const data = JSON.parse(orderData as string);
-                const items = Array.isArray(data.items) ? data.items : 
-                             Array.isArray(data.orders) ? data.orders.flatMap((o: any) => o.items) : [];
+                
+                // --- LOGS FOR DEBUGGING ---
+                console.log("RAW INVOICE DATA:", data);
+                console.log("NAME CHECK:", data.first_name, data.last_name);
+                console.log("CONTACT CHECK:", data.contact_number);
+                console.log("PAYMENT STATUS:", data.payment_status);
 
-                const display_name = data.customer_name || 
-                                   [data.first_name, data.last_name].filter(Boolean).join(" ") || 
-                                   "Customer";
+                const rawItems = Array.isArray(data.items) ? data.items : [];
 
                 setInvoice({
-                    display_name,
-                    items,
-                    address: data.address || "Not provided",
-                    contact_number: data.contact_number || "Not provided",
-                    social_handle: data.social_handle || "Not provided",
-                    payment: data.payment || {},
+                    display_name: data.customer_full_name || `${data.first_name || ''} ${data.last_name || ''}`.trim() || "Customer Name",
+                    items: rawItems,
+                    address: data.address || "Street, Barangay, City...",
+                    contact_number: data.contact_number || "09XXXXXXXXX",
+                    social_handle: data.social_handle || "username",
                     total: Number(data.total) || 0,
+                    payment_method: data.payment?.payment_method || "Cash",
+                    payment_status: data.payment_status || "Unpaid",
+                    payment_date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
                 });
             } catch (err) {
                 console.error("Failed to parse order data", err);
@@ -61,110 +98,68 @@ export default function InvoiceScreen() {
         }
     }, [orderData]);
 
-    const handleShare = async () => {
-        if (!invoice) return;
-        const message = `Order for ${invoice.display_name}\nTotal: ₱${invoice.total.toLocaleString()}`;
-        await Share.share({ message });
-    };
-
-    const handleDownload = async () => {
-        try {
-            // 1. Request Permissions
-            const { status } = await MediaLibrary.requestPermissionsAsync();
-            if (status !== 'granted') {
-                Alert.alert("Permission Denied", "We need access to your gallery to save the invoice.");
-                return;
-            }
-
-            // 2. Capture the View
-            const uri = await captureRef(viewShotRef, {
-                format: 'png',
-                quality: 1,
-            });
-
-            // 3. Save to Gallery
-            await MediaLibrary.saveToLibraryAsync(uri);
-            Alert.alert("Success", "Invoice saved to your gallery!");
-        } catch (error) {
-            console.error("Download error:", error);
-            Alert.alert("Error", "Failed to download invoice.");
-        }
-    };
-
     if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color="#AB8262" /></View>;
-    if (!invoice) return <View style={styles.centered}><Text>Order not found.</Text></View>;
+    if (!invoice) return <View style={styles.centered}><Text>Order data error.</Text></View>;
+
+    const isPaid = invoice.payment_status?.toLowerCase() === 'paid';
 
     return (
         <View style={styles.container}>
-            {/* Custom Header */}
-            <View style={styles.header}>
-                <IconButton icon="close" iconColor="#AB8262" onPress={() => router.replace('/(tabs)/orders')} />
-                <Text style={styles.headerTitle}>Invoice</Text>
-                <View style={styles.headerActions}>
-                    <IconButton icon="download" iconColor="#AB8262" onPress={handleDownload} />
-                    <IconButton icon="share-variant" iconColor="#AB8262" onPress={handleShare} />
-                </View>
-            </View>
-
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                {/* ViewShot wraps the part you want to download */}
-                <ViewShot 
-                    ref={viewShotRef} 
-                    options={{ format: "png", quality: 1.0 }}
-                    style={{ backgroundColor: '#F1F0ED' }} // Ensure background is captured
-                >
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                <ViewShot ref={viewShotRef} options={{ format: "png", quality: 1.0 }} style={styles.captureContainer}>
                     <Surface style={styles.invoiceCard} elevation={0}>
-                        {/* Logo Section */}
-                        <View style={styles.logoContainer}>
-                            <Image source={BrownLogo} style={styles.logo} resizeMode="contain" />
+
+                        <View style={styles.logoSection}>
+                            <Image source={require('../../../assets/images/brown-logo.png')} style={styles.logo} resizeMode="contain" />
                         </View>
 
-                        <Divider style={styles.divider} />
+                        <View style={styles.horizontalDivider} />
 
-                        {/* Billed To Section */}
-                        <Text style={styles.sectionHeading}>Billed To:</Text>
-                        <View style={styles.infoGrid}>
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>Billed to :</Text>
                             <InfoRow label="Customer Name" value={invoice.display_name} />
                             <InfoRow label="Address" value={invoice.address} />
-                            <InfoRow label="Contact No" value={invoice.contact_number} />
-                            <InfoRow label="Social Media" value={invoice.social_handle} />
+                            <InfoRow label="Contact Number" value={invoice.contact_number} />
+                            <InfoRow label="Social Media Account" value={invoice.social_handle} />
                         </View>
 
-                        <Divider style={styles.divider} />
+                        <View style={styles.horizontalDivider} />
 
-                        {/* Clothes Section */}
-                        <Text style={styles.sectionHeading}>Clothes:</Text>
-                        {invoice.items.map((item, idx) => (
-                            <View key={idx} style={styles.itemRow}>
-                                <Text style={styles.itemCode}>{item.item?.code || item.code || "-"}</Text>
-                                <Text style={styles.itemName}>{item.item_name || item.name}</Text>
-                                <Text style={styles.itemPrice}>₱{Math.round(Number(item.price)).toLocaleString()}</Text>
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>Clothes :</Text>
+                            {invoice.items.map((item, idx) => (
+                                <View key={idx} style={styles.itemStrip}>
+                                    <Text style={styles.itemCode}>{item.item?.code || "1202"}</Text>
+                                    <Text style={styles.itemName}>{item.item_name || item.item?.name}</Text>
+                                    <Text style={styles.itemPrice}>₱{Math.round(Number(item.price))}</Text>
+                                </View>
+                            ))}
+                            <View style={styles.totalContainer}>
+                                <Text style={styles.totalLabel}>TOTAL :</Text>
+                                <Text style={styles.totalValue}>₱{invoice.total.toLocaleString()}</Text>
                             </View>
-                        ))}
-
-                        {/* Total Row */}
-                        <View style={styles.totalRow}>
-                            <Text style={styles.totalLabel}>TOTAL :</Text>
-                            <Text style={styles.totalAmount}>₱{invoice.total.toLocaleString()}</Text>
                         </View>
 
-                        <Divider style={styles.divider} />
+                        <View style={styles.horizontalDivider} />
 
-                        {/* Payment Details */}
-                        <Text style={styles.sectionHeading}>Payment Details:</Text>
-                        <View style={styles.infoGrid}>
-                            {invoice.payment?.payment_status?.toLowerCase() === "paid" ? (
+                        {/* CONDITIONAL PAYMENT SECTION */}
+                        <View style={styles.section}>
+                            {isPaid ? (
                                 <>
-                                    <InfoRow label="Method" value={invoice.payment.payment_method} />
-                                    <InfoRow label="Status" value="PAID" />
+                                    <Text style={styles.sectionTitle}>Payment :</Text>
+                                    <InfoRow label="Mode of Payment" value={invoice.payment_method} />
+                                    <InfoRow label="Payment Status" value="Paid" />
+                                    <InfoRow label="Payment Date" value={invoice.payment_date} />
                                 </>
                             ) : (
                                 <>
-                                    <InfoRow label="Gcash" value="09457409766 (Alyanna Angeles)" />
-                                    <InfoRow label="Shopee" value="ph.shp.ee/V6guXb" />
+                                    <Text style={styles.sectionTitle}>Payment & Shipping Details :</Text>
+                                    <InfoRow label="Gcash Number" value="09457409766 - Alyanna Angeles" />
+                                    <InfoRow label="Shopee Checkout" value="https://ph.shp.ee/V6guXb" />
                                 </>
                             )}
                         </View>
+
                     </Surface>
                 </ViewShot>
             </ScrollView>
@@ -174,55 +169,30 @@ export default function InvoiceScreen() {
 
 const InfoRow = ({ label, value }: { label: string, value: string }) => (
     <View style={styles.infoRow}>
-        <Text style={styles.infoLabel}>{label}:</Text>
+        <Text style={styles.infoLabel}>{label} :</Text>
         <Text style={styles.infoValue}>{value}</Text>
     </View>
 );
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F1F0ED' },
+    container: { flex: 1, backgroundColor: '#F9F9F9' },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    header: { 
-        flexDirection: 'row', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        paddingTop: 50, 
-        paddingHorizontal: 10, 
-        backgroundColor: '#FFF',
-        borderBottomWidth: 1,
-        borderBottomColor: '#EEE'
-    },
-    headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#AB8262' },
-    headerActions: { flexDirection: 'row' },
-    scrollContent: { padding: 15, paddingBottom: 50 },
-    invoiceCard: { 
-        backgroundColor: '#FFF', 
-        borderRadius: 20, 
-        padding: 20,
-        // Added border for the capture to look cleaner
-        borderWidth: 1,
-        borderColor: '#EEE'
-    },
-    logoContainer: { alignItems: 'center', marginBottom: 10 },
-    logo: { width: 200, height: 60 },
-    divider: { marginVertical: 15, backgroundColor: '#C1A287' },
-    sectionHeading: { fontSize: 18, color: '#AB8262', fontWeight: '600', marginBottom: 10 },
-    infoGrid: { paddingLeft: 5 },
-    infoRow: { flexDirection: 'row', marginBottom: 5 },
-    infoLabel: { width: 110, fontWeight: '600', color: '#555', fontSize: 13 },
-    infoValue: { flex: 1, color: '#333', fontSize: 13 },
-    itemRow: { 
-        backgroundColor: '#FAF8F3', 
-        flexDirection: 'row', 
-        borderRadius: 10, 
-        padding: 12, 
-        marginBottom: 8, 
-        alignItems: 'center' 
-    },
-    itemCode: { flex: 1, fontSize: 12, color: '#666' },
-    itemName: { flex: 2, fontSize: 14, fontWeight: '500' },
-    itemPrice: { flex: 1, textAlign: 'right', fontWeight: 'bold' },
-    totalRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 15, paddingHorizontal: 10 },
-    totalLabel: { fontSize: 22, color: '#9B521C', fontWeight: '700' },
-    totalAmount: { fontSize: 22, fontWeight: '700' },
+    scrollContent: { padding: 20 },
+    captureContainer: { backgroundColor: '#F9F9F9', borderRadius: 25 },
+    invoiceCard: { backgroundColor: '#FFF', borderRadius: 25, padding: 25, borderWidth: 1, borderColor: '#F0F0F0' },
+    logoSection: { alignItems: 'center', marginBottom: 5 },
+    logo: { width: 180, height: 80 },
+    horizontalDivider: { height: 1.5, backgroundColor: '#E8DCD0', marginVertical: 15 },
+    section: { marginBottom: 10 },
+    sectionTitle: { fontSize: 17, color: '#AB8262', fontWeight: '700', marginBottom: 12 },
+    infoRow: { flexDirection: 'row', marginBottom: 6, alignItems: 'flex-start' },
+    infoLabel: { width: 160, fontSize: 13, fontWeight: '700', color: '#333' }, // Increased width for "Payment & Shipping Details"
+    infoValue: { flex: 1, fontSize: 13, color: '#444', lineHeight: 18 },
+    itemStrip: { flexDirection: 'row', backgroundColor: '#FCF9F5', paddingVertical: 10, paddingHorizontal: 15, marginBottom: 5, alignItems: 'center' },
+    itemCode: { flex: 1, fontSize: 13, color: '#333' },
+    itemName: { flex: 2, fontSize: 13, color: '#333', textAlign: 'center' },
+    itemPrice: { flex: 1, fontSize: 13, color: '#333', textAlign: 'right' },
+    totalContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 15, paddingHorizontal: 15 },
+    totalLabel: { fontSize: 20, color: '#AB8262', fontWeight: '800' },
+    totalValue: { fontSize: 20, fontWeight: '800', color: '#000' },
 });

@@ -73,22 +73,24 @@ export default function RootLayout() {
               headerTitleAlign: 'left',
             }} />
 
-            <Stack.Screen name="screens/invoice" options={{
-              presentation: 'fullScreenModal',
-              title: 'Invoice',
-              headerLeft: () => null,
-              headerBackVisible: false,
-              headerStyle: {
-                backgroundColor: '#0A0B32',
-              },
-              headerTintColor: '#fff',
-              headerTitleStyle: {
-                fontWeight: 800,
-                fontSize: 30,
-              },
-              headerTitleAlign: 'left',
-
-            }} />
+            <Stack.Screen
+              name="screens/invoice"
+              options={{
+                presentation: 'fullScreenModal',
+                title: 'Invoice',
+                // headerLeft: () => null, <--- REMOVE OR COMMENT THIS LINE
+                headerBackVisible: false,
+                headerStyle: {
+                  backgroundColor: '#0A0B32',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: '800',
+                  fontSize: 24, // Sized down slightly to fit buttons
+                },
+                headerTitleAlign: 'center', // 'center' usually looks better with icons on both sides
+              }}
+            />
 
             <Stack.Screen name="screens/create-collection" options={{
               presentation: 'fullScreenModal',
@@ -211,9 +213,24 @@ export default function RootLayout() {
 
             }} />
 
-             <Stack.Screen name="screens/notification-center" options={{
+            <Stack.Screen name="screens/notification-center" options={{
               presentation: 'fullScreenModal',
               title: 'Notification Center',
+              headerStyle: {
+                backgroundColor: '#0A0B32',
+              },
+              headerTintColor: '#fff',
+              headerTitleStyle: {
+                fontWeight: 800,
+                fontSize: 30,
+              },
+              headerTitleAlign: 'left',
+
+            }} />
+
+            <Stack.Screen name="screens/view-all-customers" options={{
+              presentation: 'fullScreenModal',
+              title: 'View All Customers',
               headerStyle: {
                 backgroundColor: '#0A0B32',
               },
