@@ -1,4 +1,4 @@
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import { Dimensions, Image, ImageBackground, StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -105,10 +105,6 @@ export default function ForgotPasswordScreen() {
                         {message.text}
                     </HelperText>
 
-                    <Link href="/screens/verify-otp" style={{ marginTop: 20, color: 'blue' }}>
-                        TEST INTERNAL ROUTE
-                    </Link>
-
                     <TouchableOpacity
                         onPress={() => router.back()}
                         style={styles.backToLoginContainer}
@@ -125,7 +121,7 @@ export default function ForgotPasswordScreen() {
                         contentStyle={styles.loginButtonContent}
                         labelStyle={styles.buttonLabel}
                     >
-                        Send Reset Link
+                        Send OTP Code
                     </Button>
                 </View>
             </View>
