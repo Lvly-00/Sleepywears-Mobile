@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { StatusBar } from 'expo-status-bar';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dimensions, Image, ImageBackground, Keyboard, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, HelperText, Text, TextInput } from 'react-native-paper';
 import { loginUser } from '../../services/authService';
@@ -20,13 +20,31 @@ export default function LoginScreen() {
     const [emailError, setEmailError] = useState('');
     const [passwordError, setPasswordError] = useState('');
 
+    const [failedAttempts, setFailedAttempts] = useState(0);
+    const [timer, setTimer] = useState(0);
+    const [isLocked, setIsLocked] = useState(false);
+
+    useEffect(() => {
+        let internal: NodeJS.Timeout;
+        if (timer > 0) {
+            internal = setInterval(() => {
+                setTimer((prev) => prev - 1);
+            }
+                , 1000);
+        } else if (timer === 0 && isLocked) {
+            setIsLocked(false);
+            setFailedAttempts(0);
+        }
+        return () => clearInterval(internal);
+    }, [timer, isLocked]);
+
     const validateEmail = (text: string) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(text);
     };
 
     const validatePassword = (text: string) => {
-        return text.length >= 1; 
+        return text.length >= 1;
     };
 
     const handleLogin = async () => {
@@ -67,6 +85,8 @@ export default function LoginScreen() {
                 return;
             }
 
+            setFailedAttempts(0);
+
             // Save and Navigate
             await SecureStore.setItemAsync('access_token', token);
             await SecureStore.setItemAsync('email', email);
@@ -74,7 +94,16 @@ export default function LoginScreen() {
             router.replace('/(tabs)/dashboard');
 
         } catch (error: any) {
-            if (error.response?.status === 401 || error.response?.status === 422) {
+            const newFailedAttempts = failedAttempts + 1;
+            setFailedAttempts(newFailedAttempts);
+
+            if (newFailedAttempts >= 5) {
+                setIsLocked(true);
+                setTimer(60); // Lock for 1 minute
+                setFailedAttempts(0);
+                setPasswordError('Too many failed attempts. Please try again in 1 minute.');
+                return;
+            } else if (error.response?.status === 401 || error.response?.status === 422) {
                 setPasswordError('Your password is incorrect.');
             } else {
                 setPasswordError('Unable to connect to server. Please try again.');
@@ -110,6 +139,7 @@ export default function LoginScreen() {
                     <TextInput
                         label="Email"
                         value={email}
+                        editable={!loading && !isLocked}
                         onChangeText={(text) => {
                             setEmail(text);
                             if (emailError) setEmailError('');
@@ -142,6 +172,7 @@ export default function LoginScreen() {
                     <TextInput
                         label="Password"
                         value={password}
+                        editable={!loading && !isLocked}
                         onChangeText={(text) => {
                             setPassword(text);
                             if (passwordError) setPasswordError('');
@@ -175,20 +206,37 @@ export default function LoginScreen() {
                         {passwordError}
                     </HelperText>
 
-                    <TouchableOpacity
-                        onPress={() => router.push('/screens/forgot-password')}
-                        style={styles.forgotContainer}
-                    >
-                        <Text style={styles.forgotText}>Forgot Password?</Text>
-                    </TouchableOpacity>
+                    {/* Suggest Forgot Password after 3 attempts */}
+                    {failedAttempts >= 3 ? (
+                        // Show this after 3 failures
+                        <View style={styles.suggestContainer}>
+                            <Text style={styles.suggestText}>
+                                Having trouble? Try using{' '}
+                                <Text
+                                    style={styles.forgotLink}
+                                    onPress={() => router.push('/screens/forgot-password')}
+                                >
+                                    Forgot Password?
+                                </Text>
+                            </Text>
+                        </View>
+                    ) : (
+                        // Show this normally
+                        <TouchableOpacity
+                            onPress={() => router.push('/screens/forgot-password')}
+                            style={styles.forgotContainer}
+                        >
+                            <Text style={styles.forgotText}>Forgot Password?</Text>
+                        </TouchableOpacity>
+                    )}
 
 
                     <TouchableOpacity
-                        onPress={() => router.push('/screens/forgot-password')}
-                        style={styles.biometricsContainer}
+                        onPress={() => !isLocked && router.push('/screens/forgot-password')}
+                        disabled={isLocked}
+                        style={[styles.biometricsContainer, isLocked && { opacity: 0.5 }]}
                     >
                         <MaterialCommunityIcons name="face-recognition" size={20} color="#0D0F66" />
-
                         <Text style={styles.biometrics}>Login with Biometrics</Text>
                     </TouchableOpacity>
 
@@ -196,12 +244,12 @@ export default function LoginScreen() {
                         mode="contained"
                         onPress={handleLogin}
                         loading={loading}
-                        disabled={loading}
+                        disabled={loading || isLocked}
                         style={styles.loginButton}
                         contentStyle={styles.loginButtonContent}
                         labelStyle={styles.buttonLabel}
                     >
-                        Login
+                        {isLocked ? `Locked (${timer}s)` : 'Login'}
                     </Button>
                 </View>
             </View>
@@ -287,5 +335,25 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: '#FFFFFF',
         textTransform: 'none',
+    },
+
+    suggestContainer: {
+        backgroundColor: '#f8d7da',
+        padding: 10,
+        borderRadius: 8,
+        marginTop: 5,
+        marginBottom: 30,
+        borderWidth: 1,
+        borderColor: '#f5c6cb'
+    },
+    suggestText: {
+        color: '#721C24',
+        fontSize: 14,
+        textAlign: 'center',
+    },
+    forgotLink: {
+        color: '#1D72D4',
+        fontWeight: '500',
+        textDecorationLine: 'underline',
     },
 });
