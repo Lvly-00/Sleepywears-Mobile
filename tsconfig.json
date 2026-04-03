@@ -11,7 +11,8 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
+    "services/authService.js",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
-, "services/authService.js"  ]
+  ]
 }
