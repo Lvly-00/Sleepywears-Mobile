@@ -81,6 +81,8 @@ export default function ForgotPasswordScreen() {
                         style={styles.input}
                         textColor="#818181"
                         autoCapitalize="none"
+                        disabled={loading}
+                        editable={!loading}
                         theme={{
                             colors: {
                                 onSurfaceVariant: '#0D0F66',
@@ -121,7 +123,7 @@ export default function ForgotPasswordScreen() {
                         contentStyle={styles.loginButtonContent}
                         labelStyle={styles.buttonLabel}
                     >
-                        Send OTP Code
+                        Send OTP
                     </Button>
                 </View>
             </View>

@@ -174,7 +174,7 @@ export default function VerifyOtpScreen() {
                         contentStyle={styles.loginButtonContent}
                         labelStyle={styles.buttonLabel}
                     >
-                        Verify Code
+                        Verify OTP
                     </Button>
 
                     <TouchableOpacity 
