@@ -51,7 +51,7 @@ export default function ResetPasswordScreen() {
         if (!isValid) return;
 
         setLoading(true);
-        
+
         try {
             // 2. Call the actual API
             await api.post('/passwords/reset', {
@@ -62,7 +62,7 @@ export default function ResetPasswordScreen() {
             });
 
             setLoading(false);
-            Alert.alert('Success', 'Your password has been reset successfully.', [
+            Alert.alert('Success', 'Your password has been reset. Please log in with your new password.', [
                 { text: 'OK', onPress: () => router.replace('/screens') } // Redirects to Login
             ]);
         } catch (error: any) {

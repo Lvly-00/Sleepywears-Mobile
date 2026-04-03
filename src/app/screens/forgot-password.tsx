@@ -74,6 +74,9 @@ export default function ForgotPasswordScreen() {
                             setEmail(text);
                             if (message.text) setMessage({ text: "", type: "" });
                         }}
+                        keyboardType='email-address'
+                        autoComplete='email'
+                        textContentType='emailAddress'
                         mode="flat"
                         activeUnderlineColor="#0D0F66"
                         underlineColor="#0D0F66"
