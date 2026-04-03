@@ -1,8 +1,9 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
-import { Alert, Dimensions, Image, ImageBackground, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Image, ImageBackground, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, HelperText, Text, TextInput } from 'react-native-paper';
+import SuccessModal from '../../components/success-modal'; // Ensure this path is correct
 import api from '../../services/api'; // Ensure this path is correct
 
 const { width } = Dimensions.get('window');
@@ -15,6 +16,7 @@ export default function ResetPasswordScreen() {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
 
     // Visibility states
     const [hidePassword, setHidePassword] = useState(true);
@@ -62,9 +64,13 @@ export default function ResetPasswordScreen() {
             });
 
             setLoading(false);
-            Alert.alert('Success', 'Your password has been reset. Please log in with your new password.', [
-                { text: 'OK', onPress: () => router.replace('/screens') } // Redirects to Login
-            ]);
+            setShowSuccessModal(true); // Show the custom modal
+
+            // Redirect after 3 seconds
+            setTimeout(() => {
+                setShowSuccessModal(false);
+                router.replace('/screens');
+            }, 3000);
         } catch (error: any) {
             setLoading(false);
             const serverMessage = error.response?.data?.message || 'Failed to reset password. Please try again.';
@@ -75,6 +81,13 @@ export default function ResetPasswordScreen() {
     return (
         <View style={styles.container}>
             <StatusBar style="light" />
+
+            {/* Success Modal */}
+            <SuccessModal
+                visible={showSuccessModal}
+                message="Your password has been reset. Please log in with your new password."
+            />
+
 
             {/* Header Section */}
             <ImageBackground
@@ -109,6 +122,7 @@ export default function ResetPasswordScreen() {
                         error={!!passwordError}
                         style={styles.input}
                         textColor="#818181"
+                        disabled={loading}
                         theme={{
                             colors: {
                                 onSurfaceVariant: '#0D0F66',
@@ -143,6 +157,7 @@ export default function ResetPasswordScreen() {
                         error={!!confirmPasswordError}
                         style={styles.input}
                         textColor="#818181"
+                        disabled={loading}
                         theme={{
                             colors: {
                                 onSurfaceVariant: '#0D0F66',
@@ -252,5 +267,32 @@ const styles = StyleSheet.create({
         color: '#1D72D4',
         fontSize: 14,
         fontWeight: '500',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContent: {
+        backgroundColor: 'white',
+        paddingVertical: 30,
+        paddingHorizontal: 40,
+        borderRadius: 15,
+        width: width * 0.85,
+        alignItems: 'center',
+        // Shadow for iOS/Android
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+    },
+    modalText: {
+        fontSize: 18,
+        color: '#000000',
+        textAlign: 'center',
+        fontWeight: '500',
+        lineHeight: 24,
     },
 });

@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useRef, useState } from 'react';
 import { Dimensions, Image, ImageBackground, Keyboard, TextInput as RNTextInput, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, HelperText, Text } from 'react-native-paper';
+import SuccessModal from '../../components/success-modal';
 import api from '../../services/api';
 
 const { width } = Dimensions.get('window');
@@ -14,7 +15,9 @@ export default function VerifyOtpScreen() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [resendLoading, setResendLoading] = useState(false);
-    
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+
     // --- CURSOR & FOCUS STATE ---
     const [isFocused, setIsFocused] = useState(false);
     const [cursorVisible, setCursorVisible] = useState(true);
@@ -44,7 +47,7 @@ export default function VerifyOtpScreen() {
         setResendLoading(true);
         setError('');
         try {
-            await api.post('/passwords/forgot', { email }); 
+            await api.post('/passwords/forgot', { email });
             setTimer(60);
         } catch (err: any) {
             setError("Failed to resend code.");
@@ -71,7 +74,12 @@ export default function VerifyOtpScreen() {
         setLoading(true);
         try {
             await api.post('/passwords/verify-otp', { email, otp });
-            router.push({ pathname: '/screens/reset-password', params: { email, otp } });
+
+            setShowSuccessModal(true);
+            setTimeout(() => {
+                setShowSuccessModal(false);
+                router.push({ pathname: '/screens/reset-password', params: { email, otp } });
+            }, 2000);
         } catch (err: any) {
             setError(err.response?.data?.message || "Invalid or expired code.");
         } finally {
@@ -111,6 +119,14 @@ export default function VerifyOtpScreen() {
     return (
         <View style={styles.container}>
             <StatusBar style="light" />
+
+            {/* Success Modal */}
+            <SuccessModal
+                visible={showSuccessModal}
+                message="OTP verified successfully!"
+
+            />
+
 
             <ImageBackground
                 source={require('../../../assets/images/blue-banner.png')}
@@ -177,8 +193,8 @@ export default function VerifyOtpScreen() {
                         Verify OTP
                     </Button>
 
-                    <TouchableOpacity 
-                        onPress={handleResend} 
+                    <TouchableOpacity
+                        onPress={handleResend}
                         disabled={timer > 0 || resendLoading}
                         style={{ marginTop: 25, alignItems: 'center' }}
                     >
@@ -201,128 +217,128 @@ export default function VerifyOtpScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
+    container: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+    },
 
-  headerBackground: {
-    width: width,
-    height: width * 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: -10,
-    marginBottom: -130,
-  },
+    headerBackground: {
+        width: width,
+        height: width * 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: -10,
+        marginBottom: -130,
+    },
 
-  logoImage: {
-    width: '75%',
-    height: 100,
-    marginTop: -110,
-  },
+    logoImage: {
+        width: '75%',
+        height: 100,
+        marginTop: -110,
+    },
 
-  content: {
-    flex: 1,
-    paddingHorizontal: 40,
-    marginTop: -20,
-  },
+    content: {
+        flex: 1,
+        paddingHorizontal: 40,
+        marginTop: -20,
+    },
 
-  loginTitle: {
-    fontSize: 40,
-    fontWeight: '700',
-    color: '#05083E',
-  },
+    loginTitle: {
+        fontSize: 40,
+        fontWeight: '700',
+        color: '#05083E',
+    },
 
-  subtitle: {
-    fontSize: 14,
-    color: '#05083E',
-    marginTop: 5,
-    marginBottom: 25,
-    lineHeight: 20,
-  },
+    subtitle: {
+        fontSize: 14,
+        color: '#05083E',
+        marginTop: 5,
+        marginBottom: 25,
+        lineHeight: 20,
+    },
 
-  form: {
-    width: '100%',
-  },
+    form: {
+        width: '100%',
+    },
 
-  otpContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginVertical: 10,
-    position: 'relative',
-  },
+    otpContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginVertical: 10,
+        position: 'relative',
+    },
 
-  otpBox: {
-    width: width * 0.11,
-    height: 55,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#0D0F66',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-  },
+    otpBox: {
+        width: width * 0.11,
+        height: 55,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: '#0D0F66',
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+    },
 
-  otpBoxFocused: {
-    borderColor: '#0D0F66',
-    borderWidth: 2,
-  },
+    otpBoxFocused: {
+        borderColor: '#0D0F66',
+        borderWidth: 2,
+    },
 
-  otpText: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#05083E',
-  },
+    otpText: {
+        fontSize: 22,
+        fontWeight: '700',
+        color: '#05083E',
+    },
 
-  cursor: {
-    width: 2,
-    height: 24,
-    backgroundColor: '#0D0F66',
-  },
+    cursor: {
+        width: 2,
+        height: 24,
+        backgroundColor: '#0D0F66',
+    },
 
-  hiddenInput: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0,
-    fontSize: 1,
-  },
+    hiddenInput: {
+        ...StyleSheet.absoluteFillObject,
+        opacity: 0,
+        fontSize: 1,
+    },
 
-  helper: {
-    paddingHorizontal: 0,
-    marginTop: 5,
-    marginBottom: 10,
-    lineHeight: 14,
-    fontWeight: '600',
-    color: ERROR_COLOR,
-  },
+    helper: {
+        paddingHorizontal: 0,
+        marginTop: 5,
+        marginBottom: 10,
+        lineHeight: 14,
+        fontWeight: '600',
+        color: ERROR_COLOR,
+    },
 
-  loginButton: {
-    backgroundColor: '#0D0F66',
-    borderRadius: 12,
-    elevation: 0,
-    marginTop: 10,
-  },
+    loginButton: {
+        backgroundColor: '#0D0F66',
+        borderRadius: 12,
+        elevation: 0,
+        marginTop: 10,
+    },
 
-  loginButtonContent: {
-    height: 56,
-  },
+    loginButtonContent: {
+        height: 56,
+    },
 
-  buttonLabel: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textTransform: 'none',
-  },
+    buttonLabel: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#FFFFFF',
+        textTransform: 'none',
+    },
 
-  backToLoginContainer: {
-    alignItems: 'flex-end',
-    marginTop: 10,
-    marginBottom: 15,
-  },
+    backToLoginContainer: {
+        alignItems: 'flex-end',
+        marginTop: 10,
+        marginBottom: 15,
+    },
 
-  backToLoginText: {
-    color: '#1D72D4',
-    fontSize: 14,
-    fontWeight: '500',
-  },
+    backToLoginText: {
+        color: '#1D72D4',
+        fontSize: 14,
+        fontWeight: '500',
+    },
 });

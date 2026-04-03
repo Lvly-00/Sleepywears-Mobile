@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import { Dimensions, Image, ImageBackground, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, HelperText, Text, TextInput } from 'react-native-paper';
+import SuccessModal from '../../components/success-modal';
 import api from '../../services/api';
 
 const { width } = Dimensions.get('window');
@@ -13,6 +14,7 @@ export default function ForgotPasswordScreen() {
     const [email, setEmail] = useState('');
     const [message, setMessage] = useState({ text: '', type: '' });
     const [loading, setLoading] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
 
     const handleForgotPassword = async () => {
         if (!email) {
@@ -27,15 +29,16 @@ export default function ForgotPasswordScreen() {
             // Backend now sends a 6-digit OTP instead of a link
             const response = await api.post('/passwords/forgot', { email });
 
-            setMessage({ text: "Code sent! Checking your email...", type: "success" });
+            setShowSuccessModal(true);
 
             // Navigate to OTP Verification Screen after 1.5 seconds
             setTimeout(() => {
+                setShowSuccessModal(false);
                 router.push({
                     pathname: '/screens/verify-otp',
                     params: { email: email }
                 });
-            }, 1500);
+            }, 2000);
 
         } catch (error: any) {
             let msg = error.response?.data?.message || "Failed to send code. Please try again.";
@@ -49,6 +52,12 @@ export default function ForgotPasswordScreen() {
     return (
         <View style={styles.container}>
             <StatusBar style="light" />
+
+            {/* Success Modal */}
+            <SuccessModal
+                visible={showSuccessModal}
+                message="The OTP has been sent to your email!"
+            />
 
             <ImageBackground
                 source={require('../../../assets/images/blue-banner.png')}
