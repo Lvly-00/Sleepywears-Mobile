@@ -4,14 +4,22 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { Provider } from 'react-native-paper';
 
-// 1. IMPORT the types instead of defining them locally
-import { Collection, CollectionDropdown, Item } from '../../components/collection-dropdown';
+import { CollectionDropdown } from '../../components/collection-dropdown';
 import { ItemCard } from '../../components/item-card';
 import { OrderFooter } from '../../components/order-footer';
 
-// REMOVE the local interfaces from here:
-// interface Item { ... } 
-// interface Collection { ... }
+interface Item {
+    id: number;
+    price: number;
+    status: string;
+}
+
+interface Collection {
+    name: string;
+    status: string;
+    items: Item[];
+}
+
 
 
 export default function CreateOrderScreen() {

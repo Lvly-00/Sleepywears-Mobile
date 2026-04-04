@@ -2,7 +2,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
     Alert,
     Dimensions,
     Image,
@@ -55,11 +54,8 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
     const [image, setImage] = useState<any>(null);
     const [existingImage, setExistingImage] = useState<string | null>(null);
 
-    const [loading, setLoading] = useState(false);
-    const [visible, setVisible] = useState(false);
-    const [showSuccess, setShowSuccess] = useState(false);
+    const [modalState, setModalState] = useState({ visible: false, loading: false, message: "" });
     const [errors, setErrors] = useState({ name: "", price: "", image: "" });
-    const [msg, setMsg] = useState("");
 
     useEffect(() => {
         if (initialData) {
@@ -118,7 +114,12 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
             return;
         }
 
-        setLoading(true);
+        setModalState({
+            visible: true,
+            loading: true,
+            message: mode === 'create' ? "Adding Item..." : "Updating Item..."
+        });
+
         const formData = new FormData();
         formData.append("name", name);
         formData.append("price", price.replace(/[^0-9.]/g, ''));
@@ -145,13 +146,19 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
                 await api.post(`/items/${initialData.id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
             }
 
-            setShowSuccess(true);
+            setModalState({
+                visible: true,
+                loading: false,
+                message: mode === 'create' ? 'Item added successfully!' : 'Item updated successfully!'
+            });
             setTimeout(() => {
-                setShowSuccess(false);
+                setModalState({ visible: false, loading: false, message: "" });
                 router.back();
             }, 1500);
-
         } catch (error: any) {
+            // 3. Error Case: Close modal so user can see what's wrong
+            setModalState({ visible: false, loading: false, message: "" });
+
             if (error.response?.status === 422) {
                 const validationErrors = error.response.data.errors || {};
                 setErrors({
@@ -159,9 +166,9 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
                     price: validationErrors.price ? validationErrors.price[0] : '',
                     image: validationErrors.image ? validationErrors.image[0] : '',
                 });
+            } else {
+                Alert.alert("Error", "Something went wrong. Please try again.");
             }
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -183,7 +190,7 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
                             borderStyle: errors.image ? 'dashed' : 'dashed'
                         }
                     ]} onPress={pickImage}
-                    disabled={loading}
+                    disabled={modalState.loading}
                 >
                     {image ? (
                         <Image source={{ uri: image.uri }} style={styles.previewImage} />
@@ -219,7 +226,7 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
                         error={!!errors.name}
                         underlineColor="#BCBCBC"
                         activeUnderlineColor="#0A2167"
-                        disabled={loading}
+                        disabled={modalState.loading}
                         textColor='black'
                         theme={{
                             colors: {
@@ -247,7 +254,7 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
                         error={!!errors.price}
                         underlineColor="#BCBCBC"
                         activeUnderlineColor="#0A2167"
-                        disabled={loading}
+                        disabled={modalState.loading}
                         textColor='black'
                         placeholder="₱ 0"
                         theme={{
@@ -268,15 +275,16 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
                     style={styles.saveButton}
                     labelStyle={styles.buttonLabel}
                     contentStyle={styles.buttonContent}
-                    disabled={loading}>
-                    {loading ? <ActivityIndicator color="#fff" /> : (mode === 'create' ? "Save" : "Update")}
+                    disabled={modalState.loading}>
+                    {mode === 'create' ? "Save" : "Update"}
                 </Button>
 
             </ScrollView>
 
             <SuccessModal
-                visible={showSuccess}
-                message={mode === 'create' ? 'Item added successfully!' : 'Item updated successfully!'}
+                visible={modalState.visible}
+                isLoading={modalState.loading}
+                message={modalState.message}
             />
         </KeyboardAvoidingView>
     );

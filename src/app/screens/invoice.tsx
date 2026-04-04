@@ -1,3 +1,4 @@
+import SuccessModal from '@/src/components/success-modal';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as MediaLibrary from 'expo-media-library';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
@@ -31,10 +32,16 @@ export default function InvoiceScreen() {
     const { orderData } = useLocalSearchParams();
     const router = useRouter();
     const navigation = useNavigation();
-    
+
     const [invoice, setInvoice] = useState<NormalizedInvoice | null>(null);
     const [loading, setLoading] = useState(true);
     const viewShotRef = useRef<any>(null);
+    const [modalState, setModalState] = useState({
+        visible: false,
+        loading: false,
+        message: ""
+    });
+
 
     const handleDownload = async () => {
         try {
@@ -43,11 +50,18 @@ export default function InvoiceScreen() {
                 Alert.alert("Permission Denied", "Enable storage access to save.");
                 return;
             }
+            setModalState({ visible: true, loading: true, message: "Saving Invoice..." });
+
             const uri = await captureRef(viewShotRef, { format: 'png', quality: 1.0 });
             await MediaLibrary.saveToLibraryAsync(uri);
-            Alert.alert("Success", "Invoice saved to gallery!");
+
+            // 4. Show success message
+            setModalState({ visible: true, loading: false, message: "Invoice Saved to Gallery!" });
+            setTimeout(() => {
+                setModalState(prev => ({ ...prev, visible: false }));
+            }, 2000);
         } catch (error) {
-            Alert.alert("Error", "Failed to save image.");
+            setModalState({ visible: false, loading: false, message: "" });
         }
     };
 
@@ -64,13 +78,13 @@ export default function InvoiceScreen() {
                 </TouchableOpacity>
             ),
         });
-    }, [navigation]);
+    }, [navigation, invoice]);
 
     useEffect(() => {
         if (orderData) {
             try {
                 const data = JSON.parse(orderData as string);
-                
+
                 // --- LOGS FOR DEBUGGING ---
                 console.log("RAW INVOICE DATA:", data);
                 console.log("NAME CHECK:", data.first_name, data.last_name);
@@ -163,6 +177,11 @@ export default function InvoiceScreen() {
                     </Surface>
                 </ViewShot>
             </ScrollView>
+            <SuccessModal
+                visible={modalState.visible}
+                isLoading={modalState.loading}
+                message={modalState.message}
+            />
         </View>
     );
 }
@@ -175,24 +194,127 @@ const InfoRow = ({ label, value }: { label: string, value: string }) => (
 );
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F9F9F9' },
-    centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    scrollContent: { padding: 20 },
-    captureContainer: { backgroundColor: '#F9F9F9', borderRadius: 25 },
-    invoiceCard: { backgroundColor: '#FFF', borderRadius: 25, padding: 25, borderWidth: 1, borderColor: '#F0F0F0' },
-    logoSection: { alignItems: 'center', marginBottom: 5 },
-    logo: { width: 180, height: 80 },
-    horizontalDivider: { height: 1.5, backgroundColor: '#E8DCD0', marginVertical: 15 },
-    section: { marginBottom: 10 },
-    sectionTitle: { fontSize: 17, color: '#AB8262', fontWeight: '700', marginBottom: 12 },
-    infoRow: { flexDirection: 'row', marginBottom: 6, alignItems: 'flex-start' },
-    infoLabel: { width: 160, fontSize: 13, fontWeight: '700', color: '#333' }, // Increased width for "Payment & Shipping Details"
-    infoValue: { flex: 1, fontSize: 13, color: '#444', lineHeight: 18 },
-    itemStrip: { flexDirection: 'row', backgroundColor: '#FCF9F5', paddingVertical: 10, paddingHorizontal: 15, marginBottom: 5, alignItems: 'center' },
-    itemCode: { flex: 1, fontSize: 13, color: '#333' },
-    itemName: { flex: 2, fontSize: 13, color: '#333', textAlign: 'center' },
-    itemPrice: { flex: 1, fontSize: 13, color: '#333', textAlign: 'right' },
-    totalContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 15, paddingHorizontal: 15 },
-    totalLabel: { fontSize: 20, color: '#AB8262', fontWeight: '800' },
-    totalValue: { fontSize: 20, fontWeight: '800', color: '#000' },
+    container: {
+        flex: 1,
+        backgroundColor: '#F9F9F9',
+    },
+
+    centered: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+
+    scrollContent: {
+        padding: 20,
+    },
+
+    captureContainer: {
+        backgroundColor: '#F9F9F9',
+        borderRadius: 25,
+    },
+
+    invoiceCard: {
+        backgroundColor: '#FFF',
+        borderRadius: 25,
+        padding: 25,
+        borderWidth: 1,
+        borderColor: '#F0F0F0',
+    },
+
+    logoSection: {
+        alignItems: 'center',
+        marginBottom: 5,
+    },
+
+    logo: {
+        width: 180,
+        height: 80,
+    },
+
+    horizontalDivider: {
+        height: 1.5,
+        backgroundColor: '#E8DCD0',
+        marginVertical: 15,
+    },
+
+    section: {
+        marginBottom: 10,
+    },
+
+    sectionTitle: {
+        fontSize: 17,
+        color: '#AB8262',
+        fontWeight: '700',
+        marginBottom: 12,
+    },
+
+    infoRow: {
+        flexDirection: 'row',
+        marginBottom: 6,
+        alignItems: 'flex-start',
+    },
+
+    infoLabel: {
+        width: 160,
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#333',
+    },
+
+    infoValue: {
+        flex: 1,
+        fontSize: 13,
+        color: '#444',
+        lineHeight: 18,
+    },
+
+    itemStrip: {
+        flexDirection: 'row',
+        backgroundColor: '#FCF9F5',
+        paddingVertical: 10,
+        paddingHorizontal: 15,
+        marginBottom: 5,
+        alignItems: 'center',
+    },
+
+    itemCode: {
+        flex: 1,
+        fontSize: 13,
+        color: '#333',
+    },
+
+    itemName: {
+        flex: 2,
+        fontSize: 13,
+        color: '#333',
+        textAlign: 'center',
+    },
+
+    itemPrice: {
+        flex: 1,
+        fontSize: 13,
+        color: '#333',
+        textAlign: 'right',
+    },
+
+    totalContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 15,
+        paddingHorizontal: 15,
+    },
+
+    totalLabel: {
+        fontSize: 20,
+        color: '#AB8262',
+        fontWeight: '800',
+    },
+
+    totalValue: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: '#000',
+    },
 });

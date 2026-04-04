@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
 
     subtotalLabel: {
         fontSize: 18,
-        color: '#333',
+        color: '#0D0F66',
     },
 
     subtotalValue: {
