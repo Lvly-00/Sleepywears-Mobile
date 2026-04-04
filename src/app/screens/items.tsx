@@ -66,13 +66,17 @@ export default function ItemsScreen() {
 
     const renderHeaderRight = () => {
         if (!isSelectionMode) return null;
+        const selectedItem = items.find(i => i.id === Array.from(selectedIds)[0]);
+        const isSoldOut = selectedItem?.status === "Sold Out" || selectedItem?.is_available === false;
+
+
         return (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
                 <TouchableOpacity onPress={() => setSelectedIds(new Set(items.map(i => i.id)))}>
                     <MaterialCommunityIcons name="select-all" size={24} color="#ffffff" />
                 </TouchableOpacity>
 
-                {selectedIds.size === 1 && (
+                {selectedIds.size === 1 && !isSoldOut && (
                     <TouchableOpacity onPress={() => {
                         const item = items.find(i => i.id === Array.from(selectedIds)[0]);
                         router.push({ pathname: '/screens/edit-item', params: { item: JSON.stringify(item), collectionId } });
