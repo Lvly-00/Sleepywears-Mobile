@@ -1,6 +1,8 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
 import { Dimensions, Modal, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
+
 
 const { width } = Dimensions.get('window');
 
@@ -18,9 +20,16 @@ const SuccessModal = ({ visible, message }: SuccessModalProps) => {
         >
             <View style={styles.modalOverlay}>
                 <View style={styles.modalContent}>
-                    <Text style={styles.modalText}>
-                        {message}
-                    </Text>
+                    <View style={styles.container}>
+                        <MaterialCommunityIcons
+                            name="check-circle"
+                            size={30}
+                            color="#4CAF50"
+                        />
+                        <Text style={styles.modalText}>
+                            {message}
+                        </Text>
+                    </View>
                 </View>
             </View>
         </Modal>
@@ -55,6 +64,11 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontWeight: '500',
         lineHeight: 24,
+        paddingLeft: 10,
+    },
+    container: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
 });
 
