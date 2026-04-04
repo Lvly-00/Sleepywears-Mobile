@@ -2,6 +2,7 @@ import SuccessModal from '@/src/components/success-modal';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as MediaLibrary from 'expo-media-library';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import * as Sharing from 'expo-sharing';
 import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -43,6 +44,7 @@ export default function InvoiceScreen() {
     });
 
 
+    // Download logic
     const handleDownload = async () => {
         try {
             const { status } = await MediaLibrary.requestPermissionsAsync(true);
@@ -55,12 +57,41 @@ export default function InvoiceScreen() {
             const uri = await captureRef(viewShotRef, { format: 'png', quality: 1.0 });
             await MediaLibrary.saveToLibraryAsync(uri);
 
-            // 4. Show success message
             setModalState({ visible: true, loading: false, message: "Invoice Saved to Gallery!" });
             setTimeout(() => {
                 setModalState(prev => ({ ...prev, visible: false }));
             }, 2000);
         } catch (error) {
+            setModalState({ visible: false, loading: false, message: "" });
+        }
+    };
+
+    // Share logic
+    const handleShare = async () => {
+        try {
+            // Optional: Check if sharing is available on the device
+            const isAvailable = await Sharing.isAvailableAsync();
+            if (!isAvailable) {
+                Alert.alert("Error", "Sharing is not available on this device");
+                return;
+            }
+
+            setModalState({ visible: true, loading: true, message: "Preparing to share..." });
+
+            // Capture the view
+            const uri = await captureRef(viewShotRef, { format: 'png', quality: 1.0 });
+
+            // Close modal before opening share dialog so it doesn't get stuck
+            setModalState({ visible: false, loading: false, message: "" });
+
+            // Open native share sheet
+            await Sharing.shareAsync(uri, {
+                mimeType: 'image/png',
+                dialogTitle: 'Share Invoice',
+                UTI: 'public.png'
+            });
+        } catch (error) {
+            console.error("Share error:", error);
             setModalState({ visible: false, loading: false, message: "" });
         }
     };
@@ -73,9 +104,14 @@ export default function InvoiceScreen() {
                 </TouchableOpacity>
             ),
             headerRight: () => (
-                <TouchableOpacity onPress={handleDownload} style={{ marginRight: 15 }}>
-                    <MaterialCommunityIcons name="download" size={28} color="white" />
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', marginRight: 10 }}>
+                    <TouchableOpacity onPress={handleShare} style={{ marginRight: 15 }}>
+                        <MaterialCommunityIcons name="share-variant" size={26} color="white" />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={handleDownload} style={{ marginRight: 5 }}>
+                        <MaterialCommunityIcons name="download" size={28} color="white" />
+                    </TouchableOpacity>
+                </View>
             ),
         });
     }, [navigation, invoice]);

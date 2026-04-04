@@ -69,6 +69,14 @@ export default function OrdersScreen() {
     fetchOrders(null, search);
   }, []);
 
+  useEffect(() => {
+    if (selectedOrder) {
+      // Log the actual field we are using for the logic
+      console.log("LOGGED PAYMENT STATUS:", selectedOrder?.payment?.payment_status);
+      console.log("IS IT EQUAL TO 'paid'?", selectedOrder?.payment?.payment_status?.trim().toLowerCase() === 'paid');
+    }
+  }, [selectedOrder]);
+
   // HANDLERS
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -164,7 +172,7 @@ export default function OrdersScreen() {
               contentContainerStyle={styles.listContent}
               ItemSeparatorComponent={() => <View style={styles.separator} />}
               ListFooterComponent={() => loadingMore ? <ActivityIndicator style={{ margin: 20 }} color="#0A256C" /> : null}
-              ListEmptyComponent={<Text style={styles.emptyText}>No orders found.</Text>}
+              ListEmptyComponent={<Text style={styles.emptyText}>{search.trim().length > 0 ? "No results found." : "No orders found."}</Text>}
               // Performance items
               removeClippedSubviews={true}
               initialNumToRender={10}
@@ -179,6 +187,7 @@ export default function OrdersScreen() {
           visible={actionVisible}
           customerName={selectedOrder ? `${selectedOrder.first_name} ${selectedOrder.last_name}` : ""}
           onClose={() => setActionVisible(false)}
+          showAddPayment={selectedOrder?.payment?.payment_status?.toLowerCase() !== 'paid'}
           onAddPayment={handleOpenAddPayment}
           onDeletePress={handleOpenDeleteConfirm}
         />

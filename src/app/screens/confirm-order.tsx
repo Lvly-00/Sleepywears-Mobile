@@ -1,3 +1,4 @@
+import { CancelOrderModal } from '@/src/components/cancel-order-modal';
 import SuccessModal from '@/src/components/success-modal';
 import api from '@/src/services/api'; // Use your api service
 import { router, useLocalSearchParams } from 'expo-router';
@@ -5,7 +6,6 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Dimensions, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Divider, HelperText } from 'react-native-paper';
 import { OrderCard, SectionHeader, UnderlinedInput } from '../../components/confirm-order-components';
-
 const { width } = Dimensions.get('window');
 
 const ERROR_COLOR = '#9E2626';
@@ -27,6 +27,7 @@ export default function ConfirmOrderScreen() {
 
     const [form, setForm] = useState(initialFormState);
     const [modalState, setModalState] = useState({ visible: false, loading: false, message: "" });
+    const [isCancelModalVisible, setIsCancelModalVisible] = useState(false);
 
     const [orderItems] = useState<any[]>(params.items ? JSON.parse(params.items as string) : []);
     const [errors, setErrors] = useState<any>({});
@@ -61,6 +62,12 @@ export default function ConfirmOrderScreen() {
             }
         }
     }, [params.selectedCustomer]);
+
+    const handleConfirmCancel = () => {
+        setIsCancelModalVisible(false);
+        router.replace('/orders');
+    };
+
 
     const handlePlaceOrder = async () => {
         if (isSubmitting) return;
@@ -288,7 +295,7 @@ export default function ConfirmOrderScreen() {
                     <View style={styles.buttonGroup}>
                         <TouchableOpacity
                             style={[styles.cancelBtn, isSubmitting && styles.disabled]}
-                            onPress={() => router.back()}
+                            onPress={() => setIsCancelModalVisible(true)}
                             disabled={isSubmitting}
                         >
                             <Text style={styles.btnText}>Cancel</Text>
@@ -305,7 +312,11 @@ export default function ConfirmOrderScreen() {
                 </View>
             </ScrollView>
 
-
+            <CancelOrderModal
+                visible={isCancelModalVisible}
+                onClose={() => setIsCancelModalVisible(false)}
+                onConfirm={handleConfirmCancel}
+            />
             <SuccessModal
                 visible={modalState.visible}
                 isLoading={modalState.loading}
@@ -358,7 +369,7 @@ const styles = StyleSheet.create({
     },
 
     footer: {
-       paddingBottom: 5,
+        paddingBottom: 5,
     },
 
     buttonGroup: {

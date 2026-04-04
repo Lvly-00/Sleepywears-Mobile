@@ -11,6 +11,8 @@ import { Divider, Modal, Portal, Text } from "react-native-paper";
 interface Order {
   id: number;
   total: number;
+  first_name?: string;
+  last_name?: string;
   customer_name?: string;
   [key: string]: any;
 }
@@ -69,8 +71,13 @@ const AddPaymentModal = ({ visible, onClose, order, onOrderUpdated }: AddPayment
             <Text style={styles.subText}>
               Select a payment method for {"\n"}
               <Text style={styles.boldText}>
-                {order?.customer_name || `Order #${order?.id}`}
-              </Text>
+                <Text style={styles.boldText}>
+                  {order?.first_name
+                    ? `${order.first_name} ${order.last_name}`
+                    : (order?.customer_name || "Guest")}
+                 
+                </Text>             
+                 </Text>
             </Text>
             <Text style={styles.amountText}>
               ₱{Number(order?.total || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
@@ -103,8 +110,8 @@ const AddPaymentModal = ({ visible, onClose, order, onOrderUpdated }: AddPayment
 
           {/* 3. FOOTER ACTIONS */}
           <View style={styles.footer}>
-            <TouchableOpacity 
-              style={styles.actionButton} 
+            <TouchableOpacity
+              style={styles.actionButton}
               onPress={handleSave}
               disabled={!method || submitting}
             >
@@ -118,10 +125,10 @@ const AddPaymentModal = ({ visible, onClose, order, onOrderUpdated }: AddPayment
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity 
-                style={styles.actionButton} 
-                onPress={onClose} 
-                disabled={submitting}
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={onClose}
+              disabled={submitting}
             >
               <Divider style={styles.topDivider} />
               <Text style={styles.cancelText}>Cancel</Text>
@@ -162,7 +169,7 @@ const styles = StyleSheet.create({
   },
   boldText: {
     fontWeight: "800",
-      color: "#000000",
+    color: "#000000",
   },
   amountText: {
     fontSize: 22,

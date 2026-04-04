@@ -47,8 +47,12 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
         return url;
     };
 
+    
+
     const [name, setName] = useState(initialData?.name || "");
-    const [price, setPrice] = useState(initialData?.price?.toString() || "");
+    const [price, setPrice] = useState(initialData?.price != null ? formatCurrency(String(initialData.price)) : ''
+        );
+
     const [status, setStatus] = useState(initialData?.status || "Available");
 
     const [image, setImage] = useState<any>(null);
@@ -57,6 +61,16 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
     const [modalState, setModalState] = useState({ visible: false, loading: false, message: "" });
     const [errors, setErrors] = useState({ name: "", price: "", image: "" });
 
+
+      function formatCurrency(val: string) {
+        const digits = val.replace(/\D/g, '');
+        if (!digits) return '';
+        return new Intl.NumberFormat('en-PH', {
+            style: 'currency',
+            currency: 'PHP',
+            minimumFractionDigits: 0,
+        }).format(parseInt(digits));
+    }
     useEffect(() => {
         if (initialData) {
             const imgPath = initialData.image || initialData.image_url;
@@ -247,7 +261,7 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
                         mode="flat"
                         keyboardType="numeric"
                         onChangeText={(val) => {
-                            setPrice(val);
+                            setPrice(formatCurrency(val));
                             setErrors(prev => ({ ...prev, price: '' }));
                         }}
                         style={styles.input}

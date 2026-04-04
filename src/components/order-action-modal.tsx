@@ -7,15 +7,16 @@ interface ActionModalProps {
     customerName: string;
     onAddPayment: () => void;
     onDeletePress: () => void;
+    showAddPayment?: boolean;
 }
 
-export const OrderActionModal = ({ visible, onClose, customerName, onAddPayment, onDeletePress }: ActionModalProps) => {
+export const OrderActionModal = ({ visible, onClose, customerName, onAddPayment, onDeletePress, showAddPayment = true }: ActionModalProps) => {
     return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
             {/* 1. Background listener to close */}
-            <TouchableOpacity 
-                style={styles.overlay} 
-                activeOpacity={1} 
+            <TouchableOpacity
+                style={styles.overlay}
+                activeOpacity={1}
                 onPress={onClose}
             >
                 {/* 2. Inner listener to prevent closing when clicking the white box */}
@@ -26,9 +27,12 @@ export const OrderActionModal = ({ visible, onClose, customerName, onAddPayment,
                             Would you like to add payment or delete <Text style={{ fontWeight: 'bold' }}>{customerName}</Text>?
                         </Text>
 
-                        <TouchableOpacity style={[styles.button, styles.borderTop]} onPress={onAddPayment}>
-                            <Text style={styles.addPaymentText}>Add Payment</Text>
-                        </TouchableOpacity>
+                        {showAddPayment && (
+                            <TouchableOpacity style={[styles.button, styles.borderTop]} onPress={onAddPayment}>
+                                <Text style={styles.addPaymentText}>Add Payment</Text>
+                            </TouchableOpacity>
+                        )}
+
 
                         <TouchableOpacity style={[styles.button, styles.borderTop]} onPress={onDeletePress}>
                             <Text style={styles.deleteText}>Delete</Text>

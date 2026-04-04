@@ -280,7 +280,7 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
 
             <SuccessModal
                 visible={visible}
-                message={mode === 'create' ? 'Collection created successfully!' : 'Collection updated successfully!'}
+                message={mode === 'create' ? 'A new collection was made successfully!' : 'Collection was updated successfully!'}
             />
 
         </KeyboardAvoidingView>
