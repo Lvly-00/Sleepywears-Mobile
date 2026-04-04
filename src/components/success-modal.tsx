@@ -1,4 +1,4 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { FontAwesome } from '@expo/vector-icons';
 import React from 'react';
 import { Dimensions, Modal, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
@@ -21,11 +21,7 @@ const SuccessModal = ({ visible, message }: SuccessModalProps) => {
             <View style={styles.modalOverlay}>
                 <View style={styles.modalContent}>
                     <View style={styles.container}>
-                        <MaterialCommunityIcons
-                            name="check-circle"
-                            size={30}
-                            color="#4CAF50"
-                        />
+                        <FontAwesome  name="check-square" size={24} color="#4CAF50" />
                         <Text style={styles.modalText}>
                             {message}
                         </Text>
@@ -47,8 +43,8 @@ const styles = StyleSheet.create({
         backgroundColor: 'white',
         paddingVertical: 25,
         paddingHorizontal: 40,
-        borderRadius: 20,
-        width: width * 0.8,
+        borderRadius: 8,
+        width: width * 0.85,
         alignItems: 'center',
         // Shadow for iOS
         shadowColor: '#000',

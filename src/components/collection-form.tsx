@@ -1,11 +1,14 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Dimensions, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { ActivityIndicator, Button, Snackbar, TextInput } from 'react-native-paper';
+import { ActivityIndicator, Button, HelperText, TextInput } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
 import api from '../services/api';
+import SuccessModal from './success-modal';
 
 const { width } = Dimensions.get('window');
+const ERROR_COLOR = '#9E2626';
+
 
 type CollectionFormProps = {
     mode: 'create' | 'edit';
@@ -25,7 +28,7 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
     const [showCutOffPicker, setShowCutOffPicker] = useState(false);
 
     const [loading, setLoading] = useState(false);
-    const [errors, setErrors] = useState({ name: '', capital: '', date: '' });
+    const [errors, setErrors] = useState({ name: '', capital: '', date: '', paymentCutOff: '' });
     const [visible, setVisible] = useState(false);
 
     function formatCurrency(val: string) {
@@ -48,9 +51,26 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
         let isValid = true;
 
         if (!name.trim()) {
-            newErrors.name = 'Collection number is required';
+            newErrors.name = 'Collection number is required.';
             isValid = false;
         }
+
+        const rawCapital = capital.replace(/\D/g, '');
+        if (!rawCapital || rawCapital === '0') {
+            newErrors.capital = 'Capital is required.';
+            isValid = false;
+        }
+
+        if (!date) {
+            newErrors.date = 'Release date is required.';
+            isValid = false;
+        }
+
+        if (paymentCutOff < date) {
+            newErrors.paymentCutOff = 'Cut-off date cannot be before release date.';
+            isValid = false;
+        }
+
 
         if (!isValid) {
             setErrors(newErrors);
@@ -84,6 +104,8 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
                     name: validationErrors.name ? validationErrors.name[0] : '',
                     capital: validationErrors.capital ? validationErrors.capital[0] : '',
                     date: validationErrors.release_date ? validationErrors.release_date[0] : '',
+                    paymentCutOff: validationErrors.payment_cutoff_date ? validationErrors.payment_cutoff_date[0] : '',
+
                 });
             }
         } finally {
@@ -104,11 +126,13 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
         >
             <ScrollView contentContainerStyle={styles.scrollContent}>
 
+
                 {/* Collection Number */}
                 <View style={styles.inputGroup}>
                     <InputLabel title="Collection Number" />
                     <TextInput
                         value={name}
+                        placeholder="12"
                         mode="flat"
                         keyboardType="numeric"
                         onChangeText={(val) => {
@@ -119,8 +143,18 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
                         style={styles.input}
                         underlineColor="#818181"
                         activeUnderlineColor="#0A0B32"
-                        textColor="#0A0B32"
+                        textColor="#0D0F66"
+                        theme={{
+                            colors: {
+                                onSurfaceVariant: '#818181',
+                                error: ERROR_COLOR
+                            }
+                        }}
                     />
+
+                    <HelperText type="error" visible={!!errors.name} style={styles.helper}>
+                        {errors.name}
+                    </HelperText>
                 </View>
 
                 {/* Capital */}
@@ -131,12 +165,26 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
                         placeholder="₱ 0"
                         mode="flat"
                         keyboardType="numeric"
-                        onChangeText={(val) => setCapital(formatCurrency(val))}
+                        onChangeText={(val) => {
+                            setCapital(formatCurrency(val));
+                            setErrors((prev) => ({ ...prev, capital: '' }));
+                        }}
+                        error={!!errors.capital}
                         style={styles.input}
                         underlineColor="#818181"
                         activeUnderlineColor="#0A0B32"
                         textColor="#0A0B32"
+                        theme={{
+                            colors: {
+                                onSurfaceVariant: '#818181',
+                                error: ERROR_COLOR
+                            }
+                        }}
                     />
+                    <HelperText type="error" visible={!!errors.capital} style={styles.helper}>
+                        {errors.capital}
+                    </HelperText>
+
                 </View>
 
                 {/* Release Date Picker */}
@@ -156,6 +204,11 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
                             />
                         </View>
                     </TouchableOpacity>
+
+                    <HelperText type="error" visible={!!errors.date} style={styles.helper}>
+                        {errors.date}
+                    </HelperText>
+
                 </View>
 
                 {/* Payment Cut-off Picker */}
@@ -175,6 +228,10 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
                             />
                         </View>
                     </TouchableOpacity>
+
+                    <HelperText type="error" visible={!!errors.paymentCutOff} style={styles.helper}>
+                        {errors.paymentCutOff}
+                    </HelperText>
                 </View>
 
                 <Button
@@ -220,16 +277,12 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
 
             </ScrollView>
 
-            <Snackbar
+
+            <SuccessModal
                 visible={visible}
-                onDismiss={() => setVisible(false)}
-                duration={2000}
-                style={styles.snackbar}
-            >
-                <Text style={styles.snackbarText}>
-                    {mode === 'create' ? `Collection "${name}" added!` : `Collection "${name}" updated!`}
-                </Text>
-            </Snackbar>
+                message={mode === 'create' ? 'Collection created successfully!' : 'Collection updated successfully!'}
+            />
+
         </KeyboardAvoidingView>
     );
 }
@@ -245,7 +298,7 @@ const styles = StyleSheet.create({
         paddingBottom: 40
     },
     inputGroup: {
-        marginBottom: 25,
+        marginBottom: 10,
     },
     label: {
         fontSize: 16,
@@ -273,10 +326,9 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         textTransform: 'none',
     },
-    snackbar: {
-        backgroundColor: '#2e7d32',
-    },
-    snackbarText: {
-        color: '#fff'
+    helper: {
+        paddingHorizontal: 0,
+        lineHeight: 14,
+        color: '#9E2626',
     },
 });
