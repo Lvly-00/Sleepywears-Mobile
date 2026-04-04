@@ -47,7 +47,7 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
     };
 
     const handleSubmit = async () => {
-        const newErrors = { name: '', capital: '', date: '', paymentCutoff: '' };
+        const newErrors = { name: '', capital: '', date: '', paymentCutOff: '' };
         let isValid = true;
 
         if (!name.trim()) {

@@ -1,4 +1,5 @@
-import { router } from 'expo-router';
+import SuccessModal from '@/src/components/success-modal';
+import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Searchbar, Text } from 'react-native-paper';
@@ -15,17 +16,21 @@ export default function InventoryScreen() {
     const [isMoreLoading, setIsMoreLoading] = useState(false); // Infinite scroll loading
     const [nextCursor, setNextCursor] = useState<string | null>(null);
     const [isFabExtended, setIsFabExtended] = useState(true);
+    const [successVisible, setSuccessVisible] = useState(false);
 
     const [selectedItem, setSelectedItem] = useState<any>(null);
     const [showActions, setShowActions] = useState(false);
 
     // Use a ref for search timeout to debounce API calls
-    const searchTimeout = useRef<NodeJS.Timeout | null>(null);
+    const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const fetchCollections = async (cursor: string | null = null, isRefreshing = false) => {
-        if (cursor) setIsMoreLoading(true);
-        else if (!isRefreshing) setLoading(true);
 
+    const fetchCollections = useCallback(async (cursor: string | null = null, isRefreshing = false) => {
+        if (cursor) {
+            setIsMoreLoading(true);
+        } else if (!isRefreshing && collections.length === 0) {
+            setLoading(true);
+        }
         try {
             const res = await api.get('/collections', {
                 params: {
@@ -37,11 +42,12 @@ export default function InventoryScreen() {
 
             const newData = res.data.data || [];
             const cursorUrl = res.data.next_page_url;
-            
+
             // Extract the cursor string from the full URL provided by Laravel
             const nextCursorStr = cursorUrl ? new URL(cursorUrl).searchParams.get('cursor') : null;
 
             setCollections(prev => cursor ? [...prev, ...newData] : newData);
+
             setNextCursor(nextCursorStr);
         } catch (err) {
             console.error('Fetch error:', err);
@@ -50,13 +56,19 @@ export default function InventoryScreen() {
             setRefreshing(false);
             setIsMoreLoading(false);
         }
-    };
+    }, [searchQuery, collections.length])
+    // Refresh data when scoming from Create/Edit screens
+    useFocusEffect(
+        useCallback(() => {
+            fetchCollections(null, true);
+        }, [fetchCollections])
+    );
 
     // Initial Load & Search Trigger
     useEffect(() => {
         // Debounce search to avoid spamming the server while typing
         if (searchTimeout.current) clearTimeout(searchTimeout.current);
-        
+
         searchTimeout.current = setTimeout(() => {
             fetchCollections(null, false);
         }, 500); // 500ms delay
@@ -94,6 +106,10 @@ export default function InventoryScreen() {
             await api.delete(`/collections/${selectedItem.id}`);
             setCollections(prev => prev.filter(c => c.id !== selectedItem.id));
             setShowActions(false);
+            setSuccessVisible(true);
+            setTimeout(() => {
+                setSuccessVisible(false);
+            }, 1500);
         } catch (err) {
             console.error('Delete error:', err);
         }
@@ -119,11 +135,12 @@ export default function InventoryScreen() {
                     placeholderTextColor={'#7A7A7A'}
                     onChangeText={setSearchQuery}
                     value={searchQuery}
+                    loading={loading && searchQuery.length > 0}
                     style={styles.searchBar}
                     inputStyle={styles.searchInputText}
                 />
 
-                {loading ? (
+                {loading && collections.length === 0 ? (
                     <ActivityIndicator style={{ marginTop: 50 }} color="#0A1D56" />
                 ) : (
                     <FlatList
@@ -142,7 +159,7 @@ export default function InventoryScreen() {
                         }
                         // Infinite Scroll Props
                         onEndReached={handleLoadMore}
-                        onEndReachedThreshold={0.2} // Trigger when 20% from bottom
+                        onEndReachedThreshold={0.2} 
                         ListFooterComponent={
                             isMoreLoading ? (
                                 <ActivityIndicator style={{ marginVertical: 20 }} color="#0A1D56" />
@@ -172,12 +189,19 @@ export default function InventoryScreen() {
                 }}
                 onDelete={handleDelete}
             />
+
+            <SuccessModal
+                visible={successVisible}
+                message="Collection deleted successfully!"
+            />
         </FabScreenWrapper>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
+    container: {
+        flex: 1
+    },
     searchBar: {
         margin: 15,
         backgroundColor: '#FFFFFF',
@@ -187,6 +211,15 @@ const styles = StyleSheet.create({
         elevation: 0,
         height: 45,
     },
-    searchInputText: { fontSize: 15, minHeight: 0, color: '#11181C' },
-    emptyText: { textAlign: 'center', marginTop: 50, color: '#7A7A7A', fontSize: 16 },
+    searchInputText: {
+        fontSize: 15,
+        minHeight: 0,
+        color: '#11181C'
+    },
+    emptyText: {
+        textAlign: 'center',
+        marginTop: 50,
+        color: '#7A7A7A',
+        fontSize: 16
+    },
 });
