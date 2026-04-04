@@ -11,7 +11,7 @@ const fixImageUrl = (url?: string | null): string | null => {
         return `https://res.cloudinary.com/dz0q8u0ia/image/upload/f_auto,q_auto/${url}`;
     }
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    return `https://your-api-domain.com/storage/${url.replace(/^public\//, '')}`;
+    return `https://res.cloudinary.com/dz0q8u0ia/image/upload/f_auto,q_auto/${url.replace(/^public\//, '')}`;
 };
 
 interface ItemCardProps {
