@@ -1,6 +1,6 @@
 import { FontAwesome } from '@expo/vector-icons';
 import React from 'react';
-import { Dimensions, Modal, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Modal, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
 
 
@@ -9,9 +9,10 @@ const { width } = Dimensions.get('window');
 interface SuccessModalProps {
     visible: boolean;
     message: string;
+    isLoading?: boolean;
 }
 
-const SuccessModal = ({ visible, message }: SuccessModalProps) => {
+const SuccessModal = ({ visible, message, isLoading = false }: SuccessModalProps) => {
     return (
         <Modal
             transparent={true}
@@ -21,7 +22,13 @@ const SuccessModal = ({ visible, message }: SuccessModalProps) => {
             <View style={styles.modalOverlay}>
                 <View style={styles.modalContent}>
                     <View style={styles.container}>
-                        <FontAwesome  name="check-square" size={24} color="#4CAF50" />
+                        {isLoading ? (
+                            // Show spinner when loading
+                            <ActivityIndicator size="small" color="#0A2167" style={{ marginRight: 10 }} />
+                        ) : (
+                            // Show checkmark when success
+                            <FontAwesome name="check-square" size={24} color="#4CAF50" />
+                        )}
                         <Text style={styles.modalText}>
                             {message}
                         </Text>

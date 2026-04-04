@@ -71,7 +71,6 @@ export const ItemCard = ({ item, isSelected, isSelectionMode, onPress, onLongPre
                             size={24}
                             color={isSelected ? "#9D6F3C" : "#9D6F3C"}
                         />
-                        {/* White background for the checkmark to make it solid like the image */}
                         {isSelected && <View style={styles.whiteBgFix} />}
                     </View>
                 )}
@@ -84,7 +83,7 @@ const styles = StyleSheet.create({
     card: {
         width: COLUMN_WIDTH,
         backgroundColor: '#fff',
-        marginBottom: 10,
+        marginBottom: 15,
         overflow: 'hidden',
     },
     imageContainer: {
@@ -95,24 +94,24 @@ const styles = StyleSheet.create({
     image: { width: '100%', height: '100%', resizeMode: 'cover' },
     selectedTint: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0, 0, 0, 0.1)', // Subtle darkening
+        backgroundColor: '#0000001a', 
     },
     footer: {
         backgroundColor: '#D9D9D9',
-        paddingHorizontal: 4,
+        paddingHorizontal: 8,
         paddingVertical: 10,
-        height: 40, // Fixed height to maintain grid alignment
+        height: 45, 
         justifyContent: 'center'
     },
 
     itemCodeName: {
-        fontSize: 10,
-        color: '#666',
+        fontSize: 16,
+        color: '#625C5C',
         fontFamily: 'LeagueSpartan-Bold',
     },
     priceText: {
-        fontSize: 14,
-        fontWeight: '800',
+        fontSize: 20,
+        fontWeight: 'bold',
         color: '#625C5C',
         fontFamily: 'LeagueSpartan-Bold',
     },
@@ -134,17 +133,19 @@ const styles = StyleSheet.create({
     },
     soldOverlay: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        backgroundColor: '#ffffff33',
         justifyContent: 'center',
         alignItems: 'center',
     },
     soldText: {
-        color: '#B80000',
+        color: '#C12423',
         fontWeight: '900',
-        fontSize: 12,
-        borderWidth: 1,
-        borderColor: '#B80000',
-        paddingHorizontal: 2,
+        fontSize: 16,
+        borderWidth: 2,
+        borderColor: '#C12423',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 5,
         transform: [{ rotate: '-10deg' }]
     },
 });

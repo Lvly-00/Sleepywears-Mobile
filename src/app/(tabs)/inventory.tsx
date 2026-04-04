@@ -17,11 +17,11 @@ export default function InventoryScreen() {
     const [nextCursor, setNextCursor] = useState<string | null>(null);
     const [isFabExtended, setIsFabExtended] = useState(true);
     const [successVisible, setSuccessVisible] = useState(false);
+    const [modalState, setModalState] = useState({ visible: false, loading: false, msg: "" });
 
     const [selectedItem, setSelectedItem] = useState<any>(null);
     const [showActions, setShowActions] = useState(false);
 
-    // Use a ref for search timeout to debounce API calls
     const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 
@@ -102,16 +102,32 @@ export default function InventoryScreen() {
 
     const handleDelete = async () => {
         if (!selectedItem) return;
+        setShowActions(false);
+
+        setModalState({
+            visible: true,
+            loading: true,
+            msg: "Deleting collection..."
+        });
+
         try {
             await api.delete(`/collections/${selectedItem.id}`);
-            setCollections(prev => prev.filter(c => c.id !== selectedItem.id));
-            setShowActions(false);
-            setSuccessVisible(true);
+            setModalState({
+                visible: true,
+                loading: false,
+                msg: "Collection deleted successfully!"
+            });
             setTimeout(() => {
-                setSuccessVisible(false);
+                setModalState(prev => ({ ...prev, visible: false }));
+                setCollections(prev => prev.filter(c => c.id !== selectedItem.id));
             }, 1500);
         } catch (err) {
             console.error('Delete error:', err);
+            setModalState({
+                visible: false,
+                loading: false,
+                msg: "Failed to delete collection."
+            });
         }
     };
 
@@ -159,7 +175,7 @@ export default function InventoryScreen() {
                         }
                         // Infinite Scroll Props
                         onEndReached={handleLoadMore}
-                        onEndReachedThreshold={0.2} 
+                        onEndReachedThreshold={0.2}
                         ListFooterComponent={
                             isMoreLoading ? (
                                 <ActivityIndicator style={{ marginVertical: 20 }} color="#0A1D56" />
@@ -191,8 +207,9 @@ export default function InventoryScreen() {
             />
 
             <SuccessModal
-                visible={successVisible}
-                message="Collection deleted successfully!"
+                visible={modalState.visible}
+                isLoading={modalState.loading}
+                message={modalState.msg}
             />
         </FabScreenWrapper>
     );

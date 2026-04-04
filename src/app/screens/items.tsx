@@ -1,3 +1,4 @@
+import SuccessModal from '@/src/components/success-modal';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useState } from 'react';
@@ -8,13 +9,14 @@ import FabScreenWrapper from '../../components/ui/fab-screen-wrapper';
 import api from '../../services/api';
 
 export default function ItemsScreen() {
-    // 1. Get collectionName from params (ensure you pass this when navigating to this screen)
     const { collectionId, collectionName } = useLocalSearchParams<{ collectionId: string, collectionName: string }>();
     const [items, setItems] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isDeleting, setIsDeleting] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string | number>>(new Set());
     const [isModalVisible, setIsModalVisible] = useState(false);
+    const [modalState, setModalState] = useState({ visible: false, loading: false, msg: "" });
+
 
     const isSelectionMode = selectedIds.size > 0;
 
@@ -41,15 +43,20 @@ export default function ItemsScreen() {
     };
 
     const handleConfirmDelete = async () => {
+        setIsModalVisible(false);
+        setModalState({ visible: true, loading: true, msg: "Deleting items..." });
         try {
-            setIsDeleting(true);
             const deletePromises = Array.from(selectedIds).map(id =>
                 api.delete(`/items/${id}`)
             );
             await Promise.all(deletePromises);
-            setIsModalVisible(false);
-            setSelectedIds(new Set());
-            await fetchItems();
+            setModalState({ visible: true, loading: false, msg: "Item(s) deleted successfully!" });
+
+            setTimeout(async () => {
+                setModalState({ ...modalState, visible: false });
+                setSelectedIds(new Set());
+                await fetchItems();
+            }, 1500);
         } catch (err) {
             console.error('Delete error:', err);
         } finally {
@@ -92,7 +99,6 @@ export default function ItemsScreen() {
         >
             <Stack.Screen
                 options={{
-                    // 2. Display selection count OR collection name
                     title: isSelectionMode ? `${selectedIds.size} Selected` : (collectionName || 'Collection'),
                     headerRight: renderHeaderRight,
                     headerLeft: isSelectionMode ? () => (
@@ -103,14 +109,6 @@ export default function ItemsScreen() {
                 }}
             />
 
-            <DeleteConfirmationModal
-                visible={isModalVisible}
-                loading={isDeleting}
-                title="Delete Confirmation"
-                message={`Are you sure you want to delete ${selectedIds.size} selected item${selectedIds.size > 1 ? 's' : ''}?`}
-                onCancel={() => !isDeleting && setIsModalVisible(false)}
-                onConfirm={handleConfirmDelete}
-            />
 
             <View style={styles.container}>
                 {loading && items.length === 0 ? (
@@ -141,6 +139,22 @@ export default function ItemsScreen() {
                     />
                 )}
             </View>
+
+
+
+            <DeleteConfirmationModal
+                visible={isModalVisible}
+                title="Delete Confirmation"
+                message={`Are you sure you want to delete ${selectedIds.size} selected item${selectedIds.size > 1 ? 's' : ''}?`}
+                onCancel={() => !isDeleting && setIsModalVisible(false)}
+                onConfirm={handleConfirmDelete}
+            />
+            <SuccessModal
+                visible={modalState.visible}
+                isLoading={modalState.loading}
+                message={modalState.msg}
+            />
+
         </FabScreenWrapper>
     );
 }
@@ -149,8 +163,8 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         paddingHorizontal: 10,
-        paddingTop: 20,   
-             
+        paddingTop: 20,
+
     },
     row: {
         justifyContent: 'flex-start',
@@ -169,6 +183,7 @@ const styles = StyleSheet.create({
         fontWeight: '500'
     },
     fabScreenWrapper: {
-        paddingBottom: 20, 
+        paddingBottom: 20,
     },
+
 });

@@ -13,10 +13,12 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import { Button, Snackbar, Text, TextInput } from 'react-native-paper';
+import { Button, HelperText, Text, TextInput } from 'react-native-paper';
 import api from '../services/api';
+import SuccessModal from './success-modal';
 
 const { width } = Dimensions.get('window');
+const ERROR_COLOR = '#9E2626';
 
 interface ItemFormProps {
     mode: 'create' | 'edit';
@@ -25,14 +27,14 @@ interface ItemFormProps {
 }
 
 export default function ItemForm({ mode, initialData, collectionId }: ItemFormProps) {
-    
+
     const fixImageUrl = (url?: string | null): string | null => {
         if (!url) return null;
 
         // If it's already a full Cloudinary URL, return it
         if (url.includes('res.cloudinary.com')) return url;
 
-        // NEW LOGIC: If the URL contains 'items/' (even if it's inside a local URL), 
+        // If the URL contains 'items/' (even if it's inside a local URL), 
         // we treat it as a Cloudinary ID.
         if (url.includes('items/')) {
             // Extract the part starting with 'items/' 
@@ -42,7 +44,7 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
 
         // Fallback for standard http/https links
         if (url.startsWith('http://') || url.startsWith('https://')) return url;
-        
+
         return url;
     };
 
@@ -55,12 +57,14 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
 
     const [loading, setLoading] = useState(false);
     const [visible, setVisible] = useState(false);
+    const [showSuccess, setShowSuccess] = useState(false);
+    const [errors, setErrors] = useState({ name: "", price: "", image: "" });
     const [msg, setMsg] = useState("");
 
     useEffect(() => {
         if (initialData) {
             const imgPath = initialData.image || initialData.image_url;
-            
+
             if (imgPath) {
                 const fixed = fixImageUrl(imgPath);
                 console.log("[DEBUG] Final URL used for display:", fixed);
@@ -86,13 +90,31 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
         if (!result.canceled) {
             setImage(result.assets[0]);
             setExistingImage(null);
+            setErrors(prev => ({ ...prev, image: "" }));
         }
     };
 
     const handleSubmit = async () => {
-        if (!name || !price || (!image && !existingImage)) {
-            setMsg("Please fill in all fields and add a photo.");
-            setVisible(true);
+        const newErrors = { name: "", price: "", image: "" };
+        let isValid = true;
+
+        if (!name.trim()) {
+            newErrors.name = "Item name is required.";
+            isValid = false;
+        }
+
+        if (!price || isNaN(Number(price.replace(/[^0-9.]/g, '')))) {
+            newErrors.price = "Valid price is required.";
+            isValid = false;
+        }
+
+        if (!image && !existingImage) {
+            newErrors.image = "An image is required.";
+            isValid = false;
+        }
+
+        if (!isValid) {
+            setErrors(newErrors);
             return;
         }
 
@@ -122,10 +144,22 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
                 formData.append('_method', 'PUT');
                 await api.post(`/items/${initialData.id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
             }
-            router.back();
+
+            setShowSuccess(true);
+            setTimeout(() => {
+                setShowSuccess(false);
+                router.back();
+            }, 1500);
+
         } catch (error: any) {
-            setMsg("Operation failed.");
-            setVisible(true);
+            if (error.response?.status === 422) {
+                const validationErrors = error.response.data.errors || {};
+                setErrors({
+                    name: validationErrors.name ? validationErrors.name[0] : '',
+                    price: validationErrors.price ? validationErrors.price[0] : '',
+                    image: validationErrors.image ? validationErrors.image[0] : '',
+                });
+            }
         } finally {
             setLoading(false);
         }
@@ -139,45 +173,111 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
             <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
 
-                <TouchableOpacity 
-                    style={[styles.imagePicker, (image || existingImage) && styles.imagePickerActive]} 
-                    onPress={pickImage} 
+                <TouchableOpacity
+                    style={[
+                        styles.imagePicker,
+                        {
+                            borderColor: errors.image
+                                ? ERROR_COLOR
+                                : (image || existingImage ? '#BCBCBC' : '#818181'),
+                            borderStyle: errors.image ? 'dashed' : 'dashed'
+                        }
+                    ]} onPress={pickImage}
                     disabled={loading}
                 >
                     {image ? (
                         <Image source={{ uri: image.uri }} style={styles.previewImage} />
                     ) : existingImage ? (
-                        <Image 
-                            source={{ uri: existingImage }} 
-                            style={styles.previewImage} 
+                        <Image
+                            source={{ uri: existingImage }}
+                            style={styles.previewImage}
                             onError={(e) => console.log("[DEBUG] Image Load Error:", e.nativeEvent.error)}
                         />
                     ) : (
                         <View style={styles.placeholderContainer}>
-                            <Text style={styles.placeholderText}>Add Photo</Text>
+                            <Text style={[styles.placeholderText, !!errors.image && { color: ERROR_COLOR }]}>
+                                Add Photo
+                            </Text>
                         </View>
                     )}
                 </TouchableOpacity>
+                <HelperText type="error" visible={!!errors.image} style={[styles.helper, { textAlign: 'center', marginBottom: 20 }]}>
+                    {errors.image}
+                </HelperText>
 
                 <View style={styles.inputGroup}>
                     <InputLabel title="Item Name" />
-                    <TextInput value={name} mode="flat" onChangeText={setName} style={styles.input} underlineColor="#BCBCBC" activeUnderlineColor="#0A2167" disabled={loading} textColor='black' />
+                    <TextInput
+                        value={name}
+                        placeholder='Blouse'
+                        mode="flat"
+                        onChangeText={(val) => {
+                            setName(val);
+                            setErrors(prev => ({ ...prev, name: '' }));
+                        }}
+                        style={styles.input}
+                        error={!!errors.name}
+                        underlineColor="#BCBCBC"
+                        activeUnderlineColor="#0A2167"
+                        disabled={loading}
+                        textColor='black'
+                        theme={{
+                            colors: {
+                                onSurfaceVariant: '#818181',
+                                error: ERROR_COLOR
+                            }
+                        }}
+                    />
+                    <HelperText type="error" visible={!!errors.name} style={styles.helper}>
+                        {errors.name}
+                    </HelperText>
                 </View>
 
                 <View style={styles.inputGroup}>
                     <InputLabel title="Price" />
-                    <TextInput value={price} mode="flat" keyboardType="numeric" onChangeText={setPrice} style={styles.input} underlineColor="#BCBCBC" activeUnderlineColor="#0A2167" disabled={loading} textColor='black' placeholder="₱ 0" />
+                    <TextInput
+                        value={price}
+                        mode="flat"
+                        keyboardType="numeric"
+                        onChangeText={(val) => {
+                            setPrice(val);
+                            setErrors(prev => ({ ...prev, price: '' }));
+                        }}
+                        style={styles.input}
+                        error={!!errors.price}
+                        underlineColor="#BCBCBC"
+                        activeUnderlineColor="#0A2167"
+                        disabled={loading}
+                        textColor='black'
+                        placeholder="₱ 0"
+                        theme={{
+                            colors: {
+                                onSurfaceVariant: '#818181',
+                                error: ERROR_COLOR
+                            }
+                        }}
+                    />
+                    <HelperText type="error" visible={!!errors.price} style={styles.helper}>
+                        {errors.price}
+                    </HelperText>
                 </View>
 
-                <Button mode="contained" onPress={handleSubmit} style={styles.saveButton} labelStyle={styles.buttonLabel} contentStyle={styles.buttonContent} disabled={loading}>
+                <Button
+                    mode="contained"
+                    onPress={handleSubmit}
+                    style={styles.saveButton}
+                    labelStyle={styles.buttonLabel}
+                    contentStyle={styles.buttonContent}
+                    disabled={loading}>
                     {loading ? <ActivityIndicator color="#fff" /> : (mode === 'create' ? "Save" : "Update")}
                 </Button>
 
             </ScrollView>
 
-            <Snackbar visible={visible} onDismiss={() => setVisible(false)} duration={2000} style={[styles.snackbar, mode === 'edit' && { backgroundColor: '#2e7d32' }]}>
-                <Text style={styles.snackbarText}>{msg}</Text>
-            </Snackbar>
+            <SuccessModal
+                visible={showSuccess}
+                message={mode === 'create' ? 'Item added successfully!' : 'Item updated successfully!'}
+            />
         </KeyboardAvoidingView>
     );
 }
@@ -189,9 +289,9 @@ const styles = StyleSheet.create({
     },
 
     scrollContent: {
-        paddingHorizontal: 25,
-        paddingTop: 30,
-        paddingBottom: 50,
+        paddingHorizontal: 30,
+        paddingTop: 40,
+        paddingBottom: 40,
     },
 
     imagePicker: {
@@ -204,7 +304,7 @@ const styles = StyleSheet.create({
         borderColor: '#818181',
         borderStyle: 'dashed',
         overflow: 'hidden',
-        marginBottom: 40,
+        marginBottom: 10,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -232,7 +332,7 @@ const styles = StyleSheet.create({
     },
 
     inputGroup: {
-        marginBottom: 25,
+        marginBottom: 10,
     },
 
     label: {
@@ -244,13 +344,15 @@ const styles = StyleSheet.create({
 
     input: {
         backgroundColor: 'transparent',
-        height: 45,
+        height: 50,
+        paddingHorizontal: 0,
     },
 
     saveButton: {
-        marginTop: 20,
-        backgroundColor: '#0A2167',
+        marginTop: 10,
+        backgroundColor: '#0A256C',
         borderRadius: 8,
+        elevation: 0,
     },
 
     buttonContent: {
@@ -263,13 +365,9 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         textTransform: 'none',
     },
-
-    snackbar: {
-        backgroundColor: '#B80000',
-    },
-
-    snackbarText: {
-        color: '#fff',
-        textAlign: 'center',
+    helper: {
+        paddingHorizontal: 0,
+        lineHeight: 14,
+        color: '#9E2626',
     },
 });
