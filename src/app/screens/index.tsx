@@ -1,10 +1,12 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
-import { Dimensions, Image, ImageBackground, Keyboard, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Dimensions, Image, ImageBackground, Keyboard, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, HelperText, Text, TextInput } from 'react-native-paper';
+import SuccessModal from '../../components/success-modal';
 import { loginUser } from '../../services/authService';
 
 const { width } = Dimensions.get('window');
@@ -21,22 +23,32 @@ export default function LoginScreen() {
     const [passwordError, setPasswordError] = useState('');
 
     const [failedAttempts, setFailedAttempts] = useState(0);
+    const [biometricFailures, setBiometricFailures] = useState(0);
+
     const [timer, setTimer] = useState(0);
     const [isLocked, setIsLocked] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false); // Add this state
+
+    const [isBiometricRegistered, setIsBiometricRegistered] = useState(false);
+
 
     useEffect(() => {
-        let internal: NodeJS.Timeout;
+        checkBiometricStatus();
+        let internal: number;
         if (timer > 0) {
-            internal = setInterval(() => {
-                setTimer((prev) => prev - 1);
-            }
-                , 1000);
+            internal = setInterval(() => setTimer((prev) => prev - 1), 1000);
         } else if (timer === 0 && isLocked) {
             setIsLocked(false);
             setFailedAttempts(0);
         }
         return () => clearInterval(internal);
     }, [timer, isLocked]);
+
+    const checkBiometricStatus = async () => {
+        const registered = await SecureStore.getItemAsync('biometric_registered');
+        setIsBiometricRegistered(registered === 'true');
+    };
+
 
     const validateEmail = (text: string) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -48,69 +60,89 @@ export default function LoginScreen() {
     };
 
     const handleLogin = async () => {
-        console.log('--- Login Process Started ---');
-        console.log('Current Input:', { email, password: password ? '********' : 'empty' });
-
         Keyboard.dismiss();
-
-        // Reset errors
         setEmailError('');
         setPasswordError('');
 
-        let isValid = true;
         if (!validateEmail(email)) {
-            console.log('Validation Failed: Email format is invalid');
             setEmailError('Invalid email address. Please enter a valid email in the format: username@example.com.');
-            isValid = false;
+            return;
         }
 
         if (!validatePassword(password)) {
-            console.log('Validation Failed: Password does not meet requirements');
             setPasswordError('Your password is incorrect.');
-            isValid = false;
-        }
-
-        if (!isValid) {
-            console.log('Login aborted due to validation errors.');
             return;
         }
 
         try {
             setLoading(true);
             const response = await loginUser(email, password);
-            const { token } = response;
-
-            if (!token) {
-                setPasswordError('Your password is incorrect.');
-                return;
+            if (response.token) {
+                await SecureStore.setItemAsync('access_token', response.token);
+                await SecureStore.setItemAsync('user_email', email);
+                router.replace('/(tabs)/dashboard');
             }
-
-            setFailedAttempts(0);
-
-            // Save and Navigate
-            await SecureStore.setItemAsync('access_token', token);
-            await SecureStore.setItemAsync('email', email);
-
-            router.replace('/(tabs)/dashboard');
-
         } catch (error: any) {
-            const newFailedAttempts = failedAttempts + 1;
-            setFailedAttempts(newFailedAttempts);
-
-            if (newFailedAttempts >= 5) {
-                setIsLocked(true);
-                setTimer(60); // Lock for 1 minute
-                setFailedAttempts(0);
-                setPasswordError('Too many failed attempts. Please try again in 1 minute.');
-                return;
-            } else if (error.response?.status === 401 || error.response?.status === 422) {
-                setPasswordError('Your password is incorrect.');
-            } else {
-                setPasswordError('Unable to connect to server. Please try again.');
-            }
-            console.error('Login Error:', error);
+            handleFailedAttempt();
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleFailedAttempt = () => {
+        const newFailedAttempts = failedAttempts + 1;
+        setFailedAttempts(newFailedAttempts);
+        if (newFailedAttempts >= 5) {
+            setIsLocked(true);
+            setTimer(60);
+            setPasswordError('Too many failed attempts. Please try again in 1 minute.');
+        } else {
+            setPasswordError('Your password is incorrect.');
+        }
+    };
+
+
+    const handleBiometricAction = async () => {
+        if (!email) {
+            setEmailError('Please enter your email to proceed.');
+            return;
+        }
+
+        const normalizedEmail = email.trim().toLowerCase();
+
+        if (!isBiometricRegistered) {
+            // ... (keep your existing Registration flow code here)
+        } else {
+            // --- LOGIN FLOW ---
+            if (biometricFailures >= 3) {
+                Alert.alert("Locked", "Face not recognized too many times. Use password.");
+                return;
+            }
+
+            const result = await LocalAuthentication.authenticateAsync({
+                promptMessage: 'Login with Face Recognition',
+                cancelLabel: 'Use Password'
+            });
+
+            if (result.success) {
+                // Check if we have a valid session token stored
+                const token = await SecureStore.getItemAsync('access_token');
+
+                if (token) {
+                    setBiometricFailures(0);
+                    // Update activity timestamp so the timer doesn't immediately log you out
+                    await SecureStore.setItemAsync('last_activity', Date.now().toString());
+                    router.replace('/(tabs)/dashboard');
+                } else {
+                    // This happens if the session was cleared
+                    Alert.alert(
+                        "Session Expired",
+                        "Please login with your password once to re-enable biometrics."
+                    );
+                }
+            } else {
+                setBiometricFailures(prev => prev + 1);
+            }
         }
     };
 
@@ -118,7 +150,10 @@ export default function LoginScreen() {
     return (
         <View style={styles.container}>
             <StatusBar style="light" />
-
+            <SuccessModal
+                visible={showSuccessModal}
+                message="The biometric authorization code has been sent!"
+            />
             <ImageBackground
                 source={require('../../../assets/images/blue-banner.png')}
                 style={styles.headerBackground}
@@ -231,13 +266,11 @@ export default function LoginScreen() {
                     )}
 
 
-                    <TouchableOpacity
-                        onPress={() => !isLocked && router.push('/screens/forgot-password')}
-                        disabled={isLocked}
-                        style={[styles.biometricsContainer, isLocked && { opacity: 0.5 }]}
-                    >
+                    <TouchableOpacity onPress={handleBiometricAction} style={styles.biometricsContainer}>
                         <MaterialCommunityIcons name="face-recognition" size={20} color="#0D0F66" />
-                        <Text style={styles.biometrics}>Login with Biometrics</Text>
+                        <Text style={styles.biometrics}>
+                            {isBiometricRegistered ? 'Login with Biometrics' : 'Register with Biometrics'}
+                        </Text>
                     </TouchableOpacity>
 
                     <Button

@@ -1,7 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import * as SecureStore from 'expo-secure-store'; // Added Import
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useRef, useState } from 'react';
-import { Dimensions, Image, ImageBackground, Keyboard, TextInput as RNTextInput, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Dimensions, Image, ImageBackground, TextInput as RNTextInput, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, HelperText, Text } from 'react-native-paper';
 import SuccessModal from '../../components/success-modal';
 import api from '../../services/api';
@@ -10,34 +11,27 @@ const { width } = Dimensions.get('window');
 const ERROR_COLOR = '#9E2626';
 
 export default function VerifyOtpScreen() {
-    const { email } = useLocalSearchParams();
+    // Extract both email and type (purpose)
+    const { email, type } = useLocalSearchParams(); 
     const [otp, setOtp] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [resendLoading, setResendLoading] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-
-    // --- CURSOR & FOCUS STATE ---
     const [isFocused, setIsFocused] = useState(false);
     const [cursorVisible, setCursorVisible] = useState(true);
 
-    // Blinking effect logic
     useEffect(() => {
-        const interval = setInterval(() => {
-            setCursorVisible((prev) => !prev);
-        }, 500); // Blink every 500ms
+        const interval = setInterval(() => setCursorVisible((v) => !v), 500);
         return () => clearInterval(interval);
     }, []);
 
-    // --- COUNTDOWN LOGIC ---
     const [timer, setTimer] = useState(60);
     useEffect(() => {
         let interval: NodeJS.Timeout;
         if (timer > 0) {
-            interval = setInterval(() => {
-                setTimer((prev) => prev - 1);
-            }, 1000);
+            interval = setInterval(() => setTimer((prev) => prev - 1), 1000);
         }
         return () => clearInterval(interval);
     }, [timer]);
@@ -47,8 +41,11 @@ export default function VerifyOtpScreen() {
         setResendLoading(true);
         setError('');
         try {
-            await api.post('/passwords/forgot', { email });
+            // Use the correct endpoint for resending based on type
+            const endpoint = type === 'biometric' ? '/biometrics/request-otp' : '/passwords/forgot';
+            await api.post(endpoint, { email });
             setTimer(60);
+            Alert.alert("Success", "A new code has been sent.");
         } catch (err: any) {
             setError("Failed to resend code.");
         } finally {
@@ -58,30 +55,42 @@ export default function VerifyOtpScreen() {
 
     const inputRef = useRef<RNTextInput>(null);
 
-    // Auto-focus on mount
-    useEffect(() => {
-        const timerFocus = setTimeout(() => {
-            inputRef.current?.focus();
-        }, 500);
-        return () => clearTimeout(timerFocus);
-    }, []);
-
     const handleVerifyOtp = async () => {
         if (otp.length < 6) {
             setError('Please enter the full 6-digit code.');
             return;
         }
         setLoading(true);
+        setError('');
+
         try {
-            await api.post('/passwords/verify-otp', { email, otp });
+            const endpoint = type === 'biometric'
+                ? '/biometrics/verify-otp'
+                : '/passwords/verify-otp';
+
+            await api.post(endpoint, { email, otp });
 
             setShowSuccessModal(true);
-            setTimeout(() => {
+
+            setTimeout(async () => {
                 setShowSuccessModal(false);
-                router.push({ pathname: '/screens/reset-password', params: { email, otp } });
+
+                if (type === 'biometric') {
+                    // Logic for Biometric Success
+                    await SecureStore.setItemAsync('biometric_registered', 'true');
+                    await SecureStore.setItemAsync('biometrics_enabled', 'true');
+                    Alert.alert("Success", "Biometrics authorized! You can now login with FaceID.");
+                    router.replace('/screens');
+                } else {
+                    // Logic for Password Reset Success
+                    router.push({ pathname: '/screens/reset-password', params: { email, otp } });
+                }
             }, 2000);
+
         } catch (err: any) {
-            setError(err.response?.data?.message || "Invalid or expired code.");
+            // Specific handling for "The code is incorrect"
+            const msg = err.response?.data?.message || "Invalid or expired code.";
+            setError(msg);
         } finally {
             setLoading(false);
         }
@@ -92,24 +101,10 @@ export default function VerifyOtpScreen() {
         for (let i = 0; i < 6; i++) {
             const digit = otp[i] || '';
             const isCurrentBoxActive = otp.length === i;
-            // Only show cursor if this is the active box AND the text input is focused
             const showCursor = isCurrentBoxActive && isFocused && cursorVisible;
-
             inputs.push(
-                <View
-                    key={i}
-                    pointerEvents="none"
-                    style={[
-                        styles.otpBox,
-                        isCurrentBoxActive && isFocused && styles.otpBoxFocused,
-                        error ? { borderColor: ERROR_COLOR } : null
-                    ]}
-                >
-                    {showCursor ? (
-                        <View style={styles.cursor} />
-                    ) : (
-                        <Text style={styles.otpText}>{digit}</Text>
-                    )}
+                <View key={i} pointerEvents="none" style={[styles.otpBox, isCurrentBoxActive && isFocused && styles.otpBoxFocused, error ? { borderColor: ERROR_COLOR } : null]}>
+                    {showCursor ? <View style={styles.cursor} /> : <Text style={styles.otpText}>{digit}</Text>}
                 </View>
             );
         }
@@ -119,41 +114,19 @@ export default function VerifyOtpScreen() {
     return (
         <View style={styles.container}>
             <StatusBar style="light" />
-
-            {/* Success Modal */}
-            <SuccessModal
-                visible={showSuccessModal}
-                message="OTP verified successfully!"
-
-            />
-
-
-            <ImageBackground
-                source={require('../../../assets/images/blue-banner.png')}
-                style={styles.headerBackground}
-                resizeMode="cover"
-            >
-                <Image
-                    source={require('../../../assets/images/logo-white.png')}
-                    style={styles.logoImage}
-                    resizeMode="cover"
-                />
+            <SuccessModal visible={showSuccessModal} message="Code verified successfully!" />
+            
+            <ImageBackground source={require('../../../assets/images/blue-banner.png')} style={styles.headerBackground} resizeMode="cover">
+                <Image source={require('../../../assets/images/logo-white.png')} style={styles.logoImage} />
             </ImageBackground>
 
             <View style={styles.content}>
                 <Text style={styles.loginTitle}>VERIFY </Text>
                 <Text style={styles.loginTitle}>CODE</Text>
-
-                <Text style={styles.subtitle}>
-                    A 6-digit code was sent to your email. {"\n"}Please enter the authentication code.
-                </Text>
+                <Text style={styles.subtitle}>Enter the 6-digit code sent to your email to continue.</Text>
 
                 <View style={styles.form}>
-                    <TouchableOpacity
-                        activeOpacity={1}
-                        onPress={() => inputRef.current?.focus()}
-                        style={styles.otpContainer}
-                    >
+                    <TouchableOpacity activeOpacity={1} onPress={() => inputRef.current?.focus()} style={styles.otpContainer}>
                         {renderInputs()}
                         <RNTextInput
                             ref={inputRef}
@@ -161,10 +134,8 @@ export default function VerifyOtpScreen() {
                             onFocus={() => setIsFocused(true)}
                             onBlur={() => setIsFocused(false)}
                             onChangeText={(text) => {
-                                const cleaned = text.replace(/[^0-9]/g, '');
-                                setOtp(cleaned);
+                                setOtp(text.replace(/[^0-9]/g, ''));
                                 if (error) setError('');
-                                if (cleaned.length === 6) Keyboard.dismiss();
                             }}
                             keyboardType="number-pad"
                             maxLength={6}
@@ -173,41 +144,19 @@ export default function VerifyOtpScreen() {
                         />
                     </TouchableOpacity>
 
-                    <HelperText type="error" visible={!!error} style={styles.helper}>
-                        {error}
-                    </HelperText>
+                    <HelperText type="error" visible={!!error} style={styles.helper}>{error}</HelperText>
 
                     <TouchableOpacity onPress={() => router.back()} style={styles.backToLoginContainer}>
                         <Text style={styles.backToLoginText}>Back to Login</Text>
                     </TouchableOpacity>
 
-                    <Button
-                        mode="contained"
-                        onPress={handleVerifyOtp}
-                        loading={loading}
-                        disabled={loading}
-                        style={styles.loginButton}
-                        contentStyle={styles.loginButtonContent}
-                        labelStyle={styles.buttonLabel}
-                    >
-                        Verify OTP
+                    <Button mode="contained" onPress={handleVerifyOtp} loading={loading} style={styles.loginButton} contentStyle={styles.loginButtonContent} labelStyle={styles.buttonLabel}>
+                        Verify Code
                     </Button>
 
-                    <TouchableOpacity
-                        onPress={handleResend}
-                        disabled={timer > 0 || resendLoading}
-                        style={{ marginTop: 25, alignItems: 'center' }}
-                    >
+                    <TouchableOpacity onPress={handleResend} disabled={timer > 0 || resendLoading} style={{ marginTop: 25, alignItems: 'center' }}>
                         <Text style={{ color: '#818181', fontSize: 14 }}>
-                            Didn't receive code? {timer > 0 ? (
-                                <Text style={{ color: '#818181', fontWeight: '700' }}>
-                                    Wait {timer}s
-                                </Text>
-                            ) : (
-                                <Text style={{ color: '#1D72D4', fontWeight: '700' }}>
-                                    {resendLoading ? "Sending..." : "Resend"}
-                                </Text>
-                            )}
+                            Didn't receive code? {timer > 0 ? <Text style={{ fontWeight: '700' }}>Wait {timer}s</Text> : <Text style={{ color: '#1D72D4', fontWeight: '700' }}>Resend</Text>}
                         </Text>
                     </TouchableOpacity>
                 </View>
@@ -215,6 +164,8 @@ export default function VerifyOtpScreen() {
         </View>
     );
 }
+
+// ... styles remain the same
 
 const styles = StyleSheet.create({
     container: {

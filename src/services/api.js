@@ -52,3 +52,7 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+export function post(arg0, arg1) {
+    throw new Error('Function not implemented.');
+}

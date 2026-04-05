@@ -1,14 +1,37 @@
 import { router } from 'expo-router';
-import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
+import React, { useEffect, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Divider, Switch, Text } from 'react-native-paper';
+
+
 
 export default function AccountScreen() {
   const [isBiometricsEnabled, setIsBiometricsEnabled] = useState(false);
+  const [isRegistered, setIsRegistered] = useState(false);
+
 
   const handleLogout = () => {
     console.log('User logged out');
     router.replace('/screens');
+  };
+
+  useEffect(() => {
+    (async () => {
+      const reg = await SecureStore.getItemAsync('biometric_registered');
+      const en = await SecureStore.getItemAsync('biometrics_enabled');
+      setIsRegistered(reg === 'true');
+      setIsBiometricsEnabled(en === 'true');
+    })();
+  }, []);
+
+  const handleToggle = async (value: boolean) => {
+    if (!isRegistered) {
+      Alert.alert("Notice", "Please register biometrics at the login screen first.");
+      return;
+    }
+    await SecureStore.setItemAsync('biometrics_enabled', value.toString());
+    setIsBiometricsEnabled(value);
   };
 
   // Reusable Component for the Menu Items
