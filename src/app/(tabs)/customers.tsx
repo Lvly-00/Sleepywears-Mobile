@@ -1,13 +1,13 @@
 import api from '@/src/services/api';
 import { Customer } from '@/src/types/customer';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshControl, SectionList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ActivityIndicator, Searchbar } from 'react-native-paper';
 import { AlphabetSidebar } from '../../components/alphabet-sidebar';
 import { CustomerActionDialog } from '../../components/customer-action-diaglog';
 
-export default function CustomerLogsScreen() {
+export default function CustomersScreen() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -21,23 +21,27 @@ export default function CustomerLogsScreen() {
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sectionListRef = useRef<SectionList>(null);
 
-  const fetchCustomers = async (cursor: string | null = null, isRefreshing = false) => {
-    if (cursor) setIsMoreLoading(true);
-    else if (!isRefreshing) setLoading(true);
+  // 1. MEMOIZED FETCH FUNCTION
+  const fetchCustomers = useCallback(async (cursor: string | null = null, isRefreshing = false) => {
+    if (cursor) {
+      setIsMoreLoading(true);
+    } else if (!isRefreshing && customers.length === 0) {
+      setLoading(true);
+    }
 
     try {
       const res = await api.get("/customers", {
         params: {
           cursor: cursor,
           search: search || undefined,
-          per_page: 15
+          per_page: 20 // Increased per_page for better SectionList coverage
         }
       });
 
       const newData = res.data.data || [];
       const cursorUrl = res.data.next_page_url;
 
-      // Extract cursor more safely
+      // Safe cursor extraction
       let nextCursorStr = null;
       if (cursorUrl) {
         const urlObj = new URL(cursorUrl, 'http://dummy.com');
@@ -53,36 +57,16 @@ export default function CustomerLogsScreen() {
       setRefreshing(false);
       setIsMoreLoading(false);
     }
-  };
+  }, [search, customers.length]);
 
-  // --- EDIT LOGIC ---
+  // 2. TRIGGER REFRESH ON FOCUS (Back from Edit/Create)
+  useFocusEffect(
+    useCallback(() => {
+      fetchCustomers(null, true);
+    }, [fetchCustomers])
+  );
 
-  const handleEditCustomer = (customer: Customer) => {
-    setModalVisible(false);
-    router.push({
-      pathname: '/screens/edit-customer',
-      params: { customer: JSON.stringify(customer) }
-    });
-  };
-
-  // ---  DELETE LOGIC ---
-  const handleDeleteCustomer = async (customer: Customer) => {
-    try {
-      await api.delete(`/customers/${customer.id}`);
-
-      // Update local state
-      setCustomers(prev => prev.filter(c => c.id !== customer.id));
-
-      // Close modal and cleanup
-      setModalVisible(false);
-      setSelectedCustomer(null);
-    } catch (err) {
-      console.error("Delete error:", err);
-    }
-  };
-
-
-  // Debounced Search
+  // 3. DEBOUNCED SEARCH
   useEffect(() => {
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
     searchTimeout.current = setTimeout(() => {
@@ -101,6 +85,29 @@ export default function CustomerLogsScreen() {
       fetchCustomers(nextCursor);
     }
   };
+
+  // --- ACTIONS ---
+
+  const handleEditCustomer = (customer: Customer) => {
+    setModalVisible(false);
+    router.push({
+      pathname: '/screens/edit-customer',
+      params: { customer: JSON.stringify(customer) }
+    });
+  };
+
+  const handleDeleteCustomer = async (customer: Customer) => {
+    try {
+      await api.delete(`/customers/${customer.id}`);
+      setCustomers(prev => prev.filter(c => c.id !== customer.id));
+      setModalVisible(false);
+      setSelectedCustomer(null);
+    } catch (err) {
+      console.error("Delete error:", err);
+    }
+  };
+
+  // --- UI LOGIC ---
 
   const sections = useMemo(() => {
     const groups = customers.reduce((acc, obj) => {
@@ -128,11 +135,6 @@ export default function CustomerLogsScreen() {
     }
   };
 
-  const handleLongPress = (customer: Customer) => {
-    setSelectedCustomer(customer);
-    setModalVisible(true);
-  };
-
   return (
     <View style={styles.container}>
       <View style={styles.searchContainer}>
@@ -147,7 +149,7 @@ export default function CustomerLogsScreen() {
       </View>
 
       <View style={{ flex: 1, flexDirection: 'row' }}>
-        {loading && !refreshing ? (
+        {loading && customers.length === 0 ? (
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <ActivityIndicator color="#1D2671" />
           </View>
@@ -167,7 +169,10 @@ export default function CustomerLogsScreen() {
               <TouchableOpacity
                 style={styles.item}
                 onPress={() => router.push({ pathname: '/screens/customer-details', params: { customer: JSON.stringify(item) } })}
-                onLongPress={() => handleLongPress(item)}
+                onLongPress={() => {
+                  setSelectedCustomer(item);
+                  setModalVisible(true);
+                }}
               >
                 <Text style={styles.itemText}>{item.first_name} {item.last_name}</Text>
               </TouchableOpacity>
@@ -176,22 +181,15 @@ export default function CustomerLogsScreen() {
             onEndReached={handleLoadMore}
             onEndReachedThreshold={0.3}
             ListFooterComponent={isMoreLoading ? <ActivityIndicator style={{ marginVertical: 20 }} size="small" /> : null}
-            ListEmptyComponent={<Text style={styles.emptyText}>No customers found.</Text>}
+            ListEmptyComponent={!loading ? <Text style={styles.emptyText}>No customers found.</Text> : null}
           />
         )}
         <AlphabetSidebar onLetterPress={scrollToLetter} />
       </View>
-{/* 
-      <ActionModal
-        visible={modalVisible}
-        customerName={selectedCustomer ? `${selectedCustomer.first_name} ${selectedCustomer.last_name}` : ""}
-        onClose={() => setModalVisible(false)}
-        onDelete={handleDeleteCustomer}
-      /> */}
 
       <CustomerActionDialog
         visible={modalVisible}
-        customer={selectedCustomer} // Pass the object, not the name string
+        customer={selectedCustomer}
         onDismiss={() => setModalVisible(false)}
         onEdit={handleEditCustomer}
         onDelete={handleDeleteCustomer}
@@ -201,15 +199,8 @@ export default function CustomerLogsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: 'white',
-    paddingTop: 5,
-  },
-  searchContainer: {
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-  },
+  container: { flex: 1, backgroundColor: 'white', paddingTop: 5 },
+  searchContainer: { paddingHorizontal: 15, paddingVertical: 10 },
   searchBar: {
     borderRadius: 25,
     borderWidth: 1,
@@ -218,41 +209,11 @@ const styles = StyleSheet.create({
     elevation: 0,
     height: 45,
   },
-  searchInputText: {
-    fontSize: 15,
-    minHeight: 0,
-    color: '#11181C'
-  },
-  headerContainer: {
-    backgroundColor: 'white',
-    paddingHorizontal: 20,
-    paddingTop: 15,
-  },
-  sectionHeader: {
-    color: '#999',
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 5,
-  },
-  headerLine: {
-    height: 1,
-    backgroundColor: '#F0F0F0',
-    width: '100%',
-  },
-  item: {
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#F0F0F0',
-  },
-  itemText: {
-    fontSize: 16,
-    color: '#1A1A1A',
-  },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 50,
-    color: '#999',
-    fontSize: 15,
-  }
+  searchInputText: { fontSize: 15, minHeight: 0, color: '#11181C' },
+  headerContainer: { backgroundColor: 'white', paddingHorizontal: 20, paddingTop: 15 },
+  sectionHeader: { color: '#999', fontSize: 14, fontWeight: '600', marginBottom: 5 },
+  headerLine: { height: 1, backgroundColor: '#F0F0F0', width: '100%' },
+  item: { paddingHorizontal: 20, paddingVertical: 15, borderBottomWidth: 0.5, borderBottomColor: '#F0F0F0' },
+  itemText: { fontSize: 16, color: '#1A1A1A' },
+  emptyText: { textAlign: 'center', marginTop: 50, color: '#999', fontSize: 15 }
 });

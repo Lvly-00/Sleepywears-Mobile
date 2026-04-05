@@ -39,8 +39,8 @@ export const CustomerActionDialog = ({ visible, customer, onDismiss, onEdit, onD
 
             <Divider style={styles.divider} />
 
-            <TouchableOpacity 
-              style={styles.actionButton} 
+            <TouchableOpacity
+              style={styles.actionButton}
               onPress={() => { onEdit(customer); onDismiss(); }}
             >
               <Text style={styles.editText}>Edit</Text>
@@ -48,8 +48,8 @@ export const CustomerActionDialog = ({ visible, customer, onDismiss, onEdit, onD
 
             <Divider style={styles.divider} />
 
-            <TouchableOpacity 
-              style={styles.actionButton} 
+            <TouchableOpacity
+              style={styles.actionButton}
               onPress={() => setIsConfirmingDelete(true)}
             >
               <Text style={styles.deleteText}>Delete</Text>
@@ -67,8 +67,8 @@ export const CustomerActionDialog = ({ visible, customer, onDismiss, onEdit, onD
             <Divider style={styles.divider} />
 
             <View style={styles.row}>
-              <TouchableOpacity 
-                style={styles.halfButton} 
+              <TouchableOpacity
+                style={styles.halfButton}
                 onPress={() => setIsConfirmingDelete(false)}
               >
                 <Text style={styles.cancelText}>Cancel</Text>
@@ -76,8 +76,8 @@ export const CustomerActionDialog = ({ visible, customer, onDismiss, onEdit, onD
 
               <View style={styles.verticalDivider} />
 
-              <TouchableOpacity 
-                style={styles.halfButton} 
+              <TouchableOpacity
+                style={styles.halfButton}
                 onPress={() => { onDelete(customer); onDismiss(); }}
               >
                 <Text style={styles.confirmDeleteText}>Delete</Text>
@@ -93,50 +93,43 @@ export const CustomerActionDialog = ({ visible, customer, onDismiss, onEdit, onD
 const styles = StyleSheet.create({
   dialog: {
     backgroundColor: '#FFF',
-    borderRadius: 30, // Matches the high radius in the image
+    borderRadius: 25,
     overflow: 'hidden',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
   },
   headerContainer: {
-    paddingHorizontal: 25,
-    paddingTop: 25,
-    paddingBottom: 20,
+    paddingHorizontal: 30,
+    paddingBottom: 25,
     alignItems: 'center',
   },
   mainTitle: {
     fontSize: 22,
-    fontWeight: '700',
+    fontWeight: 'bold',
     color: '#000',
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 15,
   },
   subTitle: {
-    fontSize: 17,
+    fontSize: 16,
     color: '#000',
     textAlign: 'center',
     lineHeight: 22,
   },
   boldText: {
     fontWeight: 'bold',
+    color: '#000',
   },
   divider: {
     backgroundColor: '#E0E0E0',
     height: 1,
+    width: '100%',
   },
   actionButton: {
     width: '100%',
-    paddingVertical: 15,
+    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  editText: {
-    fontSize: 22,
-    color: '#007AFF', // Standard iOS Blue
-    fontWeight: '500',
-  },
-  deleteText: {
-    fontSize: 22,
-    color: '#FF3B30', // Standard iOS Red
-    fontWeight: '500',
   },
   row: {
     flexDirection: 'row',
@@ -151,15 +144,26 @@ const styles = StyleSheet.create({
   verticalDivider: {
     width: 1,
     backgroundColor: '#E0E0E0',
+    height: '100%',
+  },
+  editText: {
+    fontSize: 20,
+    color: '#007AFF',
+    fontWeight: 'bold',
+  },
+  deleteText: {
+    fontSize: 20,
+    color: '#FF0000',
+    fontWeight: 'bold',
   },
   cancelText: {
-    fontSize: 18,
-    color: '#8E8E93',
-    fontWeight: '600',
+    fontSize: 20,
+    color: '#2A3C82',
+    fontWeight: 'bold',
   },
   confirmDeleteText: {
-    fontSize: 18,
-    color: '#FF3B30',
-    fontWeight: '700',
+    fontSize: 20,
+    color: '#FF0000',
+    fontWeight: 'bold',
   },
 });
