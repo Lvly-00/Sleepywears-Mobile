@@ -5,7 +5,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { RefreshControl, SectionList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ActivityIndicator, Searchbar } from 'react-native-paper';
 import { AlphabetSidebar } from '../../components/alphabet-sidebar';
-import { ActionModal } from '../../components/customers-delete-confirmation';
+import { CustomerActionDialog } from '../../components/customer-action-diaglog';
 
 export default function CustomerLogsScreen() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -40,7 +40,7 @@ export default function CustomerLogsScreen() {
       // Extract cursor more safely
       let nextCursorStr = null;
       if (cursorUrl) {
-        const urlObj = new URL(cursorUrl, 'http://dummy.com'); // Base URL avoids parsing errors
+        const urlObj = new URL(cursorUrl, 'http://dummy.com');
         nextCursorStr = urlObj.searchParams.get('cursor');
       }
 
@@ -55,26 +55,32 @@ export default function CustomerLogsScreen() {
     }
   };
 
-  // --- NEW DELETE LOGIC ---
-  const handleDeleteCustomer = async () => {
-    if (!selectedCustomer) return;
+  // --- EDIT LOGIC ---
 
+  const handleEditCustomer = (customer: Customer) => {
+    setModalVisible(false);
+    router.push({
+      pathname: '/screens/edit-customer',
+      params: { customer: JSON.stringify(customer) }
+    });
+  };
+
+  // ---  DELETE LOGIC ---
+  const handleDeleteCustomer = async (customer: Customer) => {
     try {
-      // 1. Call API
-      await api.delete(`/customers/${selectedCustomer.id}`);
+      await api.delete(`/customers/${customer.id}`);
 
-      // 2. Local Update: Filter out the deleted customer from state
-      setCustomers(prev => prev.filter(c => c.id !== selectedCustomer.id));
+      // Update local state
+      setCustomers(prev => prev.filter(c => c.id !== customer.id));
 
-      // 3. UI Cleanup
+      // Close modal and cleanup
       setModalVisible(false);
       setSelectedCustomer(null);
-      // Alert.alert("Success", "Customer deleted successfully.");
     } catch (err) {
       console.error("Delete error:", err);
-      // Alert.alert("Error", "Failed to delete customer.");
     }
   };
+
 
   // Debounced Search
   useEffect(() => {
@@ -175,12 +181,20 @@ export default function CustomerLogsScreen() {
         )}
         <AlphabetSidebar onLetterPress={scrollToLetter} />
       </View>
-
+{/* 
       <ActionModal
         visible={modalVisible}
         customerName={selectedCustomer ? `${selectedCustomer.first_name} ${selectedCustomer.last_name}` : ""}
         onClose={() => setModalVisible(false)}
-        onDelete={handleDeleteCustomer} // Fixed: Call the function
+        onDelete={handleDeleteCustomer}
+      /> */}
+
+      <CustomerActionDialog
+        visible={modalVisible}
+        customer={selectedCustomer} // Pass the object, not the name string
+        onDismiss={() => setModalVisible(false)}
+        onEdit={handleEditCustomer}
+        onDelete={handleDeleteCustomer}
       />
     </View>
   );

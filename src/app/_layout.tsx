@@ -183,6 +183,21 @@ export default function RootLayout() {
 
             }} />
 
+             <Stack.Screen name="screens/edit-customer" options={{
+              presentation: 'fullScreenModal',
+              title: 'Edit Customer',
+              headerStyle: {
+                backgroundColor: '#0A0B32',
+              },
+              headerTintColor: '#fff',
+              headerTitleStyle: {
+                fontWeight: 800,
+                fontSize: 30,
+              },
+              headerTitleAlign: 'left',
+
+            }} />
+
             <Stack.Screen name="screens/profile-information" options={{
               presentation: 'fullScreenModal',
               title: 'Profile Information',

@@ -1,5 +1,5 @@
 import api from '@/src/services/api';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Provider, Searchbar } from 'react-native-paper';
@@ -12,7 +12,11 @@ import OrderItem from '../../components/order-item';
 import FabScreenWrapper from '../../components/ui/fab-screen-wrapper';
 
 export default function OrdersScreen() {
-  const [orders, setOrders] = useState<any[]>([]);
+  const { highlightId } = useLocalSearchParams();
+  const flatListRef = useRef<FlatList>(null);
+  const processedHighlightId = useRef<string | null>(null);
+
+  const [activeHighlight, setActiveHighlight] = useState<string | null>(null); const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -28,6 +32,41 @@ export default function OrdersScreen() {
 
   // LOCK to prevent duplicate calls during infinite scroll
   const isFetching = useRef(false);
+
+  //Hightlight Redirected Orders
+  useEffect(() => {
+    // 1. Exit if no ID, or if we already processed this specific ID
+    if (!highlightId || orders.length === 0 || processedHighlightId.current === highlightId.toString()) {
+      return;
+    }
+
+    const targetId = highlightId.toString();
+    const index = orders.findIndex(o => o.id.toString() === targetId);
+
+    if (index !== -1) {
+      // 2. Mark this ID as "done" so it never triggers again
+      processedHighlightId.current = targetId;
+
+      // 3. Start the highlight
+      setActiveHighlight(targetId);
+
+      // 4. Scroll to it
+      setTimeout(() => {
+        flatListRef.current?.scrollToIndex({
+          index,
+          animated: true,
+          viewPosition: 0.5
+        });
+      }, 100);
+
+      // 5. This timer MUST clear the state
+      const timer = setTimeout(() => {
+        setActiveHighlight(null);
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [highlightId, orders]);
 
   const fetchOrders = async (cursor: string | null = null, searchTerm: string, isRefresh = false) => {
     if (isFetching.current) return;
@@ -103,11 +142,7 @@ export default function OrdersScreen() {
     setActionVisible(true);
   }, []);
 
-  /**
-   * FIX: Modal Transition
-   * We must close the Action Modal and wait for its animation to finish 
-   * before opening the next Modal (Add Payment or Delete).
-   */
+
   const handleOpenAddPayment = () => {
     setActionVisible(false);
     setTimeout(() => {
@@ -132,13 +167,20 @@ export default function OrdersScreen() {
     }
   };
 
-  const renderItem = useCallback(({ item }: { item: any }) => (
-    <OrderItem
-      item={item}
-      onPress={handleOrderPress}
-      onLongPress={handleLongPress}
-    />
-  ), [handleOrderPress, handleLongPress]);
+  const renderItem = useCallback(({ item }: { item: any }) => {
+    const isHighlighted = activeHighlight === item.id.toString();
+
+    return (
+      <View style={isHighlighted ? styles.highlightContainer : null}>
+        <OrderItem
+          item={item}
+          onPress={handleOrderPress}
+          onLongPress={handleLongPress}
+        />
+      </View>
+    );
+  }, [handleOrderPress, handleLongPress, activeHighlight]);
+
 
   return (
     <Provider>
@@ -163,6 +205,7 @@ export default function OrdersScreen() {
           ) : (
             <FlatList
               data={orders}
+              extraData={activeHighlight}
               keyExtractor={(item) => item.id.toString()}
               renderItem={renderItem}
               onScroll={onScroll}
@@ -173,7 +216,10 @@ export default function OrdersScreen() {
               ItemSeparatorComponent={() => <View style={styles.separator} />}
               ListFooterComponent={() => loadingMore ? <ActivityIndicator style={{ margin: 20 }} color="#0A256C" /> : null}
               ListEmptyComponent={<Text style={styles.emptyText}>{search.trim().length > 0 ? "No results found." : "No orders found."}</Text>}
-              // Performance items
+
+              getItemLayout={(data, index) => (
+                { length: 90, offset: 90 * index, index } // Adjust '90' to your OrderItem height
+              )}
               removeClippedSubviews={true}
               initialNumToRender={10}
               maxToRenderPerBatch={10}
@@ -182,17 +228,15 @@ export default function OrdersScreen() {
           )}
         </View>
 
-        {/* 1. INITIAL ACTION MODAL ( 설계 1 Reference ) */}
         <OrderActionModal
           visible={actionVisible}
           customerName={selectedOrder ? `${selectedOrder.first_name} ${selectedOrder.last_name}` : ""}
           onClose={() => setActionVisible(false)}
           showAddPayment={selectedOrder?.payment?.payment_status?.toLowerCase() !== 'paid'}
-          onAddPayment={handleOpenAddPayment}
-          onDeletePress={handleOpenDeleteConfirm}
+          onAddPayment={() => { setActionVisible(false); setTimeout(() => setPaymentVisible(true), 350); }}
+          onDeletePress={() => { setActionVisible(false); setTimeout(() => setDeleteVisible(true), 350); }}
         />
 
-        {/* 2. DELETE CONFIRMATION ( 설계 2 Reference ) */}
         <DeleteConfirmModal
           visible={deleteVisible}
           customerName={selectedOrder ? `${selectedOrder.first_name} ${selectedOrder.last_name}` : ""}
@@ -200,7 +244,6 @@ export default function OrdersScreen() {
           onConfirm={confirmDelete}
         />
 
-        {/* 3. ADD PAYMENT MODAL */}
         <AddPaymentModal
           visible={paymentVisible}
           onClose={() => setPaymentVisible(false)}
@@ -242,5 +285,20 @@ const styles = StyleSheet.create({
     marginTop: 50,
     color: '#7A7A7A',
     fontSize: 16
+  },
+  highlightContainer: {
+    borderWidth: 2,
+    borderColor: '#1B4E8C',        // richer blue
+    backgroundColor: '#e0ecff',    // soft blue highlight
+    marginVertical: 6,
+    marginHorizontal: -4,
+    padding: 3,
+
+    // subtle glow effect
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3, // for Android
   }
 });

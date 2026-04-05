@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Dimensions, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { ActivityIndicator, Button, HelperText, TextInput } from 'react-native-paper';
+import { Button, HelperText, TextInput } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
 import api from '../services/api';
 import SuccessModal from './success-modal';
@@ -78,6 +78,7 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
         }
 
         setLoading(true);
+        setVisible(true);
         try {
             const payload = {
                 name: name.replace(/\D/g, ''),
@@ -92,12 +93,14 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
                 await api.put(`/collections/${initialData.id}`, payload);
             }
 
-            setVisible(true);
+            setLoading(false);
             setTimeout(() => {
                 setVisible(false);
                 router.replace('/(tabs)/inventory');
             }, 1500);
         } catch (error: any) {
+            setVisible(false);
+            setLoading(false);
             if (error.response?.status === 422) {
                 const validationErrors = error.response.data.errors || {};
                 setErrors({
@@ -190,19 +193,17 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
                 {/* Release Date Picker */}
                 <View style={styles.inputGroup}>
                     <InputLabel title="Release Date" />
-                    <TouchableOpacity onPress={() => setShowReleasePicker(true)}>
-                        <View pointerEvents="none">
-                            <TextInput
-                                value={formatDateString(date)}
-                                mode="flat"
-                                style={styles.input}
-                                underlineColor="#818181"
-                                activeUnderlineColor="#0A0B32"
-                                textColor="#0A0B32"
-                                right={<TextInput.Icon icon="calendar" />}
-                                editable={false}
-                            />
-                        </View>
+                    <TouchableOpacity onPress={() => setShowReleasePicker(true)} activeOpacity={1}>
+                        <TextInput
+                            value={formatDateString(date)}
+                            mode="flat"
+                            style={styles.input}
+                            underlineColor="#818181"
+                            activeUnderlineColor="#0A0B32"
+                            textColor="#0A0B32"
+                            right={<TextInput.Icon icon="calendar" />}
+                            editable={false}
+                        />
                     </TouchableOpacity>
 
                     <HelperText type="error" visible={!!errors.date} style={styles.helper}>
@@ -214,19 +215,17 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
                 {/* Payment Cut-off Picker */}
                 <View style={styles.inputGroup}>
                     <InputLabel title="Payment Cut-off Date" />
-                    <TouchableOpacity onPress={() => setShowCutOffPicker(true)}>
-                        <View pointerEvents="none">
-                            <TextInput
-                                value={formatDateString(paymentCutOff)}
-                                mode="flat"
-                                style={styles.input}
-                                underlineColor="#818181"
-                                activeUnderlineColor="#0A0B32"
-                                textColor="#0A0B32"
-                                right={<TextInput.Icon icon="calendar" />}
-                                editable={false}
-                            />
-                        </View>
+                    <TouchableOpacity onPress={() => setShowCutOffPicker(true)} activeOpacity={1}>
+                        <TextInput
+                            value={formatDateString(paymentCutOff)}
+                            mode="flat"
+                            style={styles.input}
+                            underlineColor="#818181"
+                            activeUnderlineColor="#0A0B32"
+                            textColor="#0A0B32"
+                            right={<TextInput.Icon icon="calendar" />}
+                            editable={false}
+                        />
                     </TouchableOpacity>
 
                     <HelperText type="error" visible={!!errors.paymentCutOff} style={styles.helper}>
@@ -242,11 +241,7 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
                     labelStyle={styles.buttonLabel}
                     contentStyle={styles.buttonContent}
                 >
-                    {loading ? (
-                        <ActivityIndicator color="#fff" />
-                    ) : (
-                        mode === 'create' ? 'Save' : 'Update'
-                    )}
+                    {mode === 'create' ? 'Save' : 'Update'}
                 </Button>
 
 
@@ -280,7 +275,12 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
 
             <SuccessModal
                 visible={visible}
-                message={mode === 'create' ? 'A new collection was made successfully!' : 'Collection was updated successfully!'}
+                isLoading={loading}
+                message={
+                    loading
+                        ? (mode === 'create' ? 'Creating collection...' : 'Updating collection...')
+                        : (mode === 'create' ? 'A new collection was made successfully!' : 'Collection was updated successfully!')
+                }
             />
 
         </KeyboardAvoidingView>

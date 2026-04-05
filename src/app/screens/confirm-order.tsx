@@ -1,3 +1,4 @@
+import { AddressDropdown } from '@/src/components/address-dropdown';
 import { CancelOrderModal } from '@/src/components/cancel-order-modal';
 import SuccessModal from '@/src/components/success-modal';
 import api from '@/src/services/api'; // Use your api service
@@ -6,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Dimensions, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Divider, HelperText } from 'react-native-paper';
 import { OrderCard, SectionHeader, UnderlinedInput } from '../../components/confirm-order-components';
+
 const { width } = Dimensions.get('window');
 
 const ERROR_COLOR = '#9E2626';
@@ -16,6 +18,10 @@ export default function ConfirmOrderScreen() {
 
     // State to track if we are updating an existing customer
     const [customerId, setCustomerId] = useState<number | null>(null);
+    const [availableAddresses, setAvailableAddresses] = useState<string[]>([]);
+
+    const [isAddressMenuVisible, setIsAddressMenuVisible] = useState(false);
+
 
     const initialFormState = {
         first_name: "",
@@ -50,6 +56,8 @@ export default function ConfirmOrderScreen() {
             try {
                 const customer = JSON.parse(params.selectedCustomer as string);
                 setCustomerId(customer.id); // Store the ID for the PUT request
+                const addresses = customer.addresses || [];
+                setAvailableAddresses(addresses);
                 setForm({
                     first_name: customer.first_name || "",
                     last_name: customer.last_name || "",
@@ -72,25 +80,27 @@ export default function ConfirmOrderScreen() {
     const handlePlaceOrder = async () => {
         if (isSubmitting) return;
 
-        // 1. Validation Logic (Ported from Web)
+        // 1. Validation Logic
         const newErrors: any = {};
+
         if (orderItems.length === 0) {
             Alert.alert("Error", "Please add at least one item.");
             return;
         }
 
-        const fields = ["first_name", "last_name", "address", "contact_number", "social_handle"];
-        fields.forEach((field) => {
+        // Required field check
+        const requiredFields = ["first_name", "last_name", "address", "contact_number"];
+        requiredFields.forEach((field) => {
             if (!form[field as keyof typeof form]) {
                 newErrors[field] = "This field is required";
             }
         });
 
+        // Specific format checks
         if (form.contact_number && form.contact_number.length !== 11) {
             newErrors.contact_number = "Contact number must be exactly 11 digits.";
         }
 
-        // URL Validation for social handle
         const urlPattern = /^https?:\/\/.+/;
         if (form.social_handle && !urlPattern.test(form.social_handle)) {
             newErrors.social_handle = "Must be a valid URL (http/https)";
@@ -101,31 +111,43 @@ export default function ConfirmOrderScreen() {
             return;
         }
 
+        // Clear previous errors and show loading state
         setErrors({});
         setModalState({ visible: true, loading: true, message: "Processing Order..." });
 
         try {
             let currentCustomerId = customerId;
-            const customerPayload = { ...form };
+
+            // 2. Handle Customer Sync (Create or Update)
+            const customerPayload = {
+                ...form,
+                // Ensure we send an array of addresses to match the backend expectation
+                addresses: availableAddresses.length > 0 ? availableAddresses : [form.address]
+            };
 
             if (currentCustomerId) {
-                // Update existing customer
                 await api.put(`/customers/${currentCustomerId}`, customerPayload);
             } else {
-                // Create new customer
                 const customerRes = await api.post("/customers", customerPayload);
                 currentCustomerId = customerRes.data.id;
             }
 
-            // 3. Order Logic (Ported from Web)
+            // 3. Construct and Send Order Payload
             const orderPayload = {
-                customer: { id: currentCustomerId, ...customerPayload },
+                customer: {
+                    id: currentCustomerId,
+                    first_name: form.first_name,
+                    last_name: form.last_name,
+                    contact_number: form.contact_number,
+                    social_handle: form.social_handle,
+                },
                 items: orderItems.map((item) => ({
                     item_id: item.id,
                     item_name: item.name,
                     price: item.price,
                     quantity: 1,
                 })),
+                address: form.address, // The specific shipping address for this order
             };
 
             const response = await api.post("/orders", orderPayload);
@@ -133,8 +155,9 @@ export default function ConfirmOrderScreen() {
             if (response.status === 200 || response.status === 201) {
                 setModalState({ visible: true, loading: false, message: "Order Placed Successfully!" });
 
+                // Small delay to allow user to see success message before navigation
                 setTimeout(() => {
-                    setModalState({ ...modalState, visible: false });
+                    setModalState({ visible: false, loading: false, message: "" });
                     router.replace({
                         pathname: '/screens/invoice',
                         params: { orderData: JSON.stringify(response.data) }
@@ -143,17 +166,22 @@ export default function ConfirmOrderScreen() {
             }
         } catch (err: any) {
             setModalState({ visible: false, loading: false, message: "" });
+
             const validationErrors = err.response?.data?.errors;
             if (validationErrors) {
-                // Map backend errors to fields
+                // Map backend Laravel errors to the frontend error state
                 const mappedErrors: any = {};
                 Object.keys(validationErrors).forEach(key => {
                     mappedErrors[key] = validationErrors[key][0];
                 });
                 setErrors(mappedErrors);
+            } else {
+                const errorMessage = err.response?.data?.message || err.message || "An unexpected error occurred.";
+                Alert.alert("System Error", errorMessage);
             }
         }
     };
+
 
     return (
         <KeyboardAvoidingView
@@ -257,20 +285,36 @@ export default function ConfirmOrderScreen() {
                     </HelperText>
                 </View>
 
+                {/* ADDRESS LOGIC: Dropdown if multiple, Input if single */}
                 <View style={styles.inputGroup}>
-                    <UnderlinedInput
-                        label="Address"
-                        required
-                        placeholder="street, barangay, city..."
-                        value={form.address}
-                        error={errors.address}
-                        onChangeText={t => setForm({ ...form, address: t })}
-                        editable={!isSubmitting}
-                    />
-                    <HelperText
-                        type="error"
-                        visible={!!errors.address}
-                        style={styles.helper}>{errors.address}
+                    {/* <Text style={styles.customLabel}>
+                                Address <Text style={{ color: 'red' }}>*</Text>
+                            </Text> */}
+
+                    {availableAddresses.length > 1 ? (
+                        <AddressDropdown
+                            label="Address"
+                            required
+                            addresses={availableAddresses}
+                            selectedAddress={form.address}
+                            error={errors.address}
+                            onSelect={(addr) => setForm({ ...form, address: addr })}
+                        />
+                    ) : (
+                        <UnderlinedInput
+                            label="Address"
+                            required
+                            placeholder="street, barangay, city..."
+                            value={form.address}
+                            error={errors.address}
+                            onChangeText={(t) => setForm({ ...form, address: t })}
+                            editable={!isSubmitting}
+                        />
+                    )}
+
+                    {/* Using the standard HelperText for error consistency */}
+                    <HelperText type="error" visible={!!errors.address} style={styles.helper}>
+                        {errors.address}
                     </HelperText>
                 </View>
 
@@ -433,5 +477,27 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         textDecorationLine: 'underline',
     },
-
+    customLabel: {
+        fontSize: 12,
+        color: '#0D0F66',
+        fontWeight: '600'
+    },
+    dropdownTrigger: {
+        borderBottomWidth: 1,
+        borderBottomColor: '#ccc',
+        paddingVertical: 10,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+    },
+    dropdownText: {
+        fontSize: 15,
+        color: '#333',
+        flex: 1,
+        paddingRight: 10
+    },
+    dropdownArrow: {
+        fontSize: 10,
+        color: '#666'
+    },
 });
