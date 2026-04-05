@@ -175,6 +175,12 @@ export default function OrdersScreen() {
     );
   }, [handleOrderPress, handleLongPress, activeHighlight]);
 
+  const formatOrderId = (id: string | number | undefined) => {
+    if (!id) return "";
+    return id.toString().padStart(4, '0');
+  };
+
+  const isOrderPaid = selectedOrder?.payment?.payment_status?.toLowerCase() === 'paid';
 
   return (
     <Provider>
@@ -224,7 +230,8 @@ export default function OrdersScreen() {
 
         <OrderActionModal
           visible={actionVisible}
-          customerName={selectedOrder ? `${selectedOrder.first_name} ${selectedOrder.last_name}` : ""}
+          orderId={formatOrderId(selectedOrder?.order_number)}
+          isPaid={isOrderPaid}
           onClose={() => setActionVisible(false)}
           showAddPayment={selectedOrder?.payment?.payment_status?.toLowerCase() !== 'paid'}
           onAddPayment={() => { setActionVisible(false); setTimeout(() => setPaymentVisible(true), 350); }}
@@ -233,7 +240,7 @@ export default function OrdersScreen() {
 
         <DeleteConfirmModal
           visible={deleteVisible}
-          customerName={selectedOrder ? `${selectedOrder.first_name} ${selectedOrder.last_name}` : ""}
+          customerName={`Order #${formatOrderId(selectedOrder?.id)}`}
           onClose={() => setDeleteVisible(false)}
           onConfirm={confirmDelete}
         />

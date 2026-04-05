@@ -4,38 +4,49 @@ import { Modal, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, Vi
 interface ActionModalProps {
     visible: boolean;
     onClose: () => void;
-    customerName: string;
+    orderId: string | number;
     onAddPayment: () => void;
     onDeletePress: () => void;
     showAddPayment?: boolean;
+    isPaid?: boolean;
 }
 
-export const OrderActionModal = ({ visible, onClose, customerName, onAddPayment, onDeletePress, showAddPayment = true }: ActionModalProps) => {
+export const OrderActionModal = ({
+    visible,
+    onClose,
+    orderId,
+    onAddPayment,
+    onDeletePress,
+    isPaid
+}: ActionModalProps) => {
     return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-            {/* 1. Background listener to close */}
             <TouchableOpacity
                 style={styles.overlay}
                 activeOpacity={1}
                 onPress={onClose}
             >
-                {/* 2. Inner listener to prevent closing when clicking the white box */}
                 <TouchableWithoutFeedback>
                     <View style={styles.container}>
                         <Text style={styles.title}>What would you like to do?</Text>
+
                         <Text style={styles.subtitle}>
-                            Would you like to add payment or delete <Text style={{ fontWeight: 'bold' }}>{customerName}</Text>?
+                            {isPaid
+                                ? `Would you like to delete Order `
+                                : `Would you like to add payment or delete Order `
+                            }
+                            <Text style={{ fontWeight: 'bold' }}>#{orderId}</Text>?
                         </Text>
 
-                        {showAddPayment && (
+                        {/* Only show Add Payment if the order is NOT paid */}
+                        {!isPaid && (
                             <TouchableOpacity style={[styles.button, styles.borderTop]} onPress={onAddPayment}>
                                 <Text style={styles.addPaymentText}>Add Payment</Text>
                             </TouchableOpacity>
                         )}
 
-
                         <TouchableOpacity style={[styles.button, styles.borderTop]} onPress={onDeletePress}>
-                            <Text style={styles.deleteText}>Delete</Text>
+                            <Text style={styles.deleteText}>Delete Order</Text>
                         </TouchableOpacity>
                     </View>
                 </TouchableWithoutFeedback>
@@ -43,6 +54,7 @@ export const OrderActionModal = ({ visible, onClose, customerName, onAddPayment,
         </Modal>
     );
 };
+
 
 const styles = StyleSheet.create({
     overlay: {
