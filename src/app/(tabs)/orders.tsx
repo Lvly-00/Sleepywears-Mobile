@@ -35,7 +35,6 @@ export default function OrdersScreen() {
 
   //Hightlight Redirected Orders
   useEffect(() => {
-    // 1. Exit if no ID, or if we already processed this specific ID
     if (!highlightId || orders.length === 0 || processedHighlightId.current === highlightId.toString()) {
       return;
     }
@@ -44,13 +43,10 @@ export default function OrdersScreen() {
     const index = orders.findIndex(o => o.id.toString() === targetId);
 
     if (index !== -1) {
-      // 2. Mark this ID as "done" so it never triggers again
       processedHighlightId.current = targetId;
 
-      // 3. Start the highlight
       setActiveHighlight(targetId);
 
-      // 4. Scroll to it
       setTimeout(() => {
         flatListRef.current?.scrollToIndex({
           index,
@@ -59,7 +55,6 @@ export default function OrdersScreen() {
         });
       }, 100);
 
-      // 5. This timer MUST clear the state
       const timer = setTimeout(() => {
         setActiveHighlight(null);
       }, 3000);
@@ -87,7 +82,6 @@ export default function OrdersScreen() {
 
       setOrders(prev => {
         if (!cursor) return newData;
-        // Prevent "Duplicate Key" errors by checking if ID already exists
         const existingIds = new Set(prev.map(o => o.id));
         const filteredNewData = newData.filter((o: any) => !existingIds.has(o.id));
         return [...prev, ...filteredNewData];
@@ -288,17 +282,15 @@ const styles = StyleSheet.create({
   },
   highlightContainer: {
     borderWidth: 2,
-    borderColor: '#1B4E8C',        // richer blue
-    backgroundColor: '#e0ecff',    // soft blue highlight
+    borderColor: '#1B4E8C',
+    backgroundColor: '#e0ecff',
     marginVertical: 6,
     marginHorizontal: -4,
     padding: 3,
-
-    // subtle glow effect
     shadowColor: '#2563eb',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 6,
-    elevation: 3, // for Android
+    elevation: 3,
   }
 });
