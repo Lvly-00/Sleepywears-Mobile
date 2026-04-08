@@ -1,5 +1,12 @@
 import React from 'react';
-import { ActivityIndicator, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
 
 interface DeleteConfirmationModalProps {
   visible: boolean;
@@ -10,52 +17,58 @@ interface DeleteConfirmationModalProps {
   loading?: boolean;
 }
 
+// Colors from the design above
+const DELETE_RED = '#FF4646';
+const TEXT_MAIN = '#1A1A1A';
+const TEXT_SUB = '#4F4F4F';
+const BORDER_GRAY = '#b9b9b9';
+
 export const DeleteConfirmationModal = ({
   visible,
   onCancel,
   onConfirm,
-  title = "Delete Confirmation",
-  message = "Are you sure you want to delete?",
+  title = "Confirm to delete?",
+  message = "Are you sure you want to delete this item?",
   loading = false
 }: DeleteConfirmationModalProps) => {
   return (
-    <Modal transparent visible={visible} animationType="fade">
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={onCancel}>
       <View style={styles.overlay}>
-        <View style={styles.alertContainer}>
-          
-          {/* Main Content View */}
-          <View style={loading ? { opacity: 0.5 } : {}}>
-            <View style={styles.textContainer}>
-              <Text style={styles.title}>{title}</Text>
-              <Text style={styles.message}>{message}</Text>
+        <View style={styles.dialog}>
+
+          <View style={[styles.container, loading && { opacity: 0.5 }]}>
+            {/* Text Content */}
+            <View style={styles.headerContainer}>
+              <Text style={styles.mainTitle}>{title}</Text>
+              <Text style={styles.subTitle}>{message}</Text>
             </View>
 
+            {/* Action Buttons */}
             <View style={styles.buttonRow}>
-              <TouchableOpacity 
-                  style={[styles.button, styles.borderRight]} 
-                  onPress={onCancel}
-                  disabled={loading}
+              <TouchableOpacity
+                style={styles.outlineButton}
+                onPress={onCancel}
+                disabled={loading}
               >
-                <Text style={styles.cancelText}>Cancel</Text>
+                <Text style={styles.outlineButtonText}>Cancel</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                  style={styles.button} 
-                  onPress={onConfirm}
-                  disabled={loading}
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={onConfirm}
+                disabled={loading}
               >
-                <Text style={styles.deleteText}>Delete</Text>
+                <Text style={styles.deleteButtonText}>Delete</Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Separate Loading Overlay */}
+          {/* Loading State Overlay */}
           {loading && (
             <View style={styles.loadingOverlay}>
-              <ActivityIndicator size="large" color="#1C4D8D" />
+              <ActivityIndicator size="large" color={DELETE_RED} />
             </View>
           )}
-          
         </View>
       </View>
     </Modal>
@@ -63,68 +76,82 @@ export const DeleteConfirmationModal = ({
 };
 
 const styles = StyleSheet.create({
-  overlay: { 
-    flex: 1, 
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    padding: 20 
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)', // Dimmed background
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
-  alertContainer: { 
-    width: '100%', 
-    maxWidth: 340, 
-    backgroundColor: '#FFFFFF', 
-    borderRadius: 20, 
-    overflow: 'hidden',
-    position: 'relative', // Necessary for the absolute loading overlay
+  dialog: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 0,
   },
-  textContainer: { 
-    paddingVertical: 25, 
-    paddingHorizontal: 20, 
-    alignItems: 'center' 
+  container: {
+    paddingVertical: 25,
+    paddingHorizontal: 20,
+    alignItems: 'center',
   },
-  title: { 
-    fontSize: 20, 
-    fontWeight: '700', 
-    color: '#000', 
-    marginBottom: 12 
+  headerContainer: {
+    alignItems: 'center',
+    marginBottom: 35,
   },
-  message: { 
-    fontSize: 16, 
-    color: '#000', 
-    textAlign: 'center', 
-    lineHeight: 22 
+  mainTitle: {
+    fontSize: 24, // From design 1
+    fontWeight: 'bold',
+    color: TEXT_MAIN,
+    textAlign: 'center',
+    marginBottom: 15,
+    marginTop: -10,
   },
-  buttonRow: { 
-    flexDirection: 'row', 
-    borderTopWidth: StyleSheet.hairlineWidth, 
-    borderTopColor: '#CCCCCC' 
+  subTitle: {
+    fontSize: 16, // From design 1
+    color: TEXT_SUB,
+    textAlign: 'center',
+    paddingHorizontal: 10,
   },
-  button: { 
-    flex: 1, 
-    height: 55, 
-    justifyContent: 'center', 
-    alignItems: 'center' 
+  buttonRow: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
   },
-  borderRight: { 
-    borderRightWidth: StyleSheet.hairlineWidth, 
-    borderRightColor: '#CCCCCC' 
+  // Gray outline button for Cancel
+  outlineButton: {
+    flex: 1,
+    height: 52,
+    borderWidth: 1,
+    borderColor: BORDER_GRAY,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
   },
-  cancelText: { 
-    fontSize: 18, 
-    fontWeight: '600', 
-    color: '#203E8E' 
+  outlineButtonText: {
+    fontSize: 18,
+    color: BORDER_GRAY,
+    fontWeight: '600',
   },
-  deleteText: { 
-    fontSize: 18, 
-    fontWeight: '600', 
-    color: '#FF1100' 
+  // Red outline button for Delete
+  deleteButton: {
+    flex: 1,
+    height: 52,
+    borderWidth: 1,
+    borderColor: DELETE_RED,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  deleteButtonText: {
+    fontSize: 18,
+    color: DELETE_RED,
+    fontWeight: '600',
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(255, 255, 255, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10,
-  }
+  },
 });

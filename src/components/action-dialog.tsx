@@ -53,7 +53,7 @@ export const ActionDialog = ({ visible, item, onDismiss, onEdit, onDelete }: Act
             <View style={styles.headerContainer}>
               <Text style={styles.mainTitle}>Confirm to delete?</Text>
               <Text style={styles.subTitle}>
-                Are you sure you want to delete this {item?.name || '1 item(s)'} from cart?
+                Are you sure you want to delete this <Text style={styles.boldText}>{item?.name || 'this item'}</Text>?
               </Text>
             </View>
 
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 52,
     borderWidth: 1,
-    borderColor: DELETE,
+    borderColor: '#b9b9b9',
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -138,11 +138,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+    // marginRight: 8,
+    // backgroundColor: DELETE,
   },
   outlineButtonText: {
     fontSize: 18,
-    color: DELETE,
+    color: '#b9b9b9',
     fontWeight: '600',
   },
   solidButtonText: {

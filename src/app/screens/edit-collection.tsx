@@ -2,14 +2,14 @@ import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import CollectionForm from "../../components/collection-form";
+import CollectionFormSkeleton from "../../components/collection-form-skeleton-loader"; // Import skeleton
 import api from "../../services/api";
 
 export default function EditCollectionScreen() {
     const { collectionId } = useLocalSearchParams<{ collectionId: string }>();
 
     const [collectionData, setCollectionData] = useState<any>(null);
-    // const [loading, setLoading] = useState(true);
-
+    const [loading, setLoading] = useState(true);
     useEffect(() => {
         if (!collectionId) return;
 
@@ -19,12 +19,19 @@ export default function EditCollectionScreen() {
                 setCollectionData(res.data);
             } catch (err) {
                 console.error("Fetch collection failed:", err);
+            } finally {
+                setLoading(false);
             }
         })();
     }, [collectionId]);
 
-    // if (loading) return <ActivityIndicator style={{ marginTop: 50 }} color="#0A0B32" />;
-    if (!collectionData) return null;
+    if (loading) {
+        return (
+            <View style={styles.container}>
+                <CollectionFormSkeleton />
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>

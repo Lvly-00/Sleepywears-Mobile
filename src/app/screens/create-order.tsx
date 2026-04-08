@@ -1,11 +1,12 @@
 import api from '@/src/services/api';
 import { router } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, FlatList, StyleSheet, Text, View } from 'react-native';
 import { Provider } from 'react-native-paper';
 
 import { CollectionDropdown } from '../../components/collection-dropdown';
 import { ItemCard } from '../../components/item-card';
+import ItemSkeleton from '../../components/items-skeleton-loader';
 import { OrderFooter } from '../../components/order-footer';
 
 interface Item {
@@ -20,6 +21,10 @@ interface Collection {
     items: Item[];
 }
 
+const { width } = Dimensions.get('window');
+const COLUMN_COUNT = 3;
+const GRID_SPACING = 10;
+const ITEM_SIZE = (width - (GRID_SPACING * (COLUMN_COUNT + 1))) / COLUMN_COUNT;
 
 
 export default function CreateOrderScreen() {
@@ -68,6 +73,8 @@ export default function CreateOrderScreen() {
             console.error('Error fetching collections:', error);
         } finally {
             setLoading(false);
+            setTimeout(() => setLoading(false), 600);
+
         }
     };
     useEffect(() => { fetchCollections(); }, []);
@@ -98,14 +105,6 @@ export default function CreateOrderScreen() {
         });
     };
 
-    if (loading) {
-        return (
-            <View style={styles.centered}>
-                <ActivityIndicator color="#8B5E34" size="large" />
-            </View>
-        );
-    }
-
     return (
         <Provider>
             <View style={styles.container}>
@@ -115,25 +114,29 @@ export default function CreateOrderScreen() {
                     onSelect={(collection: Collection) => setSelectedCollection(collection)}
                 />
 
-                <FlatList
-                    data={items}
-                    keyExtractor={(item) => item.id.toString()}
-                    numColumns={3}
-                    columnWrapperStyle={styles.columnWrapper}
-                    renderItem={({ item }) => (
-                        <ItemCard
-                            item={item}
-                            isSelected={selectedItems.some(i => i.id === item.id)}
-                            isSelectionMode={true}
-                            onPress={() => handleItemToggle(item)}
-                            onLongPress={() => { }}
-                        />
-                    )}
-                    contentContainerStyle={styles.gridContent}
-                    ListEmptyComponent={
-                        <Text style={styles.emptyText}>No items available.</Text>
-                    }
-                />
+                {loading ? (
+                    <ItemSkeleton />
+                ) : (
+                    <FlatList
+                        data={items}
+                        keyExtractor={(item) => item.id.toString()}
+                        numColumns={3}
+                        columnWrapperStyle={styles.columnWrapper}
+                        renderItem={({ item }) => (
+                            <ItemCard
+                                item={item}
+                                isSelected={selectedItems.some(i => i.id === item.id)}
+                                isSelectionMode={true}
+                                onPress={() => handleItemToggle(item)}
+                                onLongPress={() => { }}
+                            />
+                        )}
+                        contentContainerStyle={styles.gridContent}
+                        ListEmptyComponent={
+                            <Text style={styles.emptyText}>No items available.</Text>
+                        }
+                    />
+                )}
 
                 <OrderFooter
                     subtotal={subtotal}
