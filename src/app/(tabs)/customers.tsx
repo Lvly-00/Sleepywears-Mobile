@@ -6,7 +6,7 @@ import { RefreshControl, SectionList, StyleSheet, Text, TouchableOpacity, View }
 import { ActivityIndicator, Searchbar } from 'react-native-paper';
 import { AlphabetSidebar } from '../../components/alphabet-sidebar';
 import { CustomerActionDialog } from '../../components/customer-action-diaglog';
-
+import CustomerSkeleton from '../../components/customer-skeleton-loader';
 export default function CustomersScreen() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");
@@ -150,8 +150,8 @@ export default function CustomersScreen() {
 
       <View style={{ flex: 1, flexDirection: 'row' }}>
         {loading && customers.length === 0 ? (
-          <View style={{ flex: 1, justifyContent: 'center' }}>
-            <ActivityIndicator color="#1D2671" />
+          <View style={{ flex: 1 }}>
+            <CustomerSkeleton repeatSections={4} itemsPerSection={5} />
           </View>
         ) : (
           <SectionList
