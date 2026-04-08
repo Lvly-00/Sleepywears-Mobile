@@ -5,6 +5,7 @@ import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Searchbar, Text } from 'react-native-paper';
 import { ActionDialog } from '../../components/action-dialog';
 import { CollectionCard } from '../../components/collection-card';
+import CollectionSkeleton from '../../components/inventory-skeleton-loader';
 import FabScreenWrapper from '../../components/ui/fab-screen-wrapper';
 import api from '../../services/api';
 
@@ -156,8 +157,8 @@ export default function InventoryScreen() {
                     inputStyle={styles.searchInputText}
                 />
 
-                {loading && collections.length === 0 ? (
-                    <ActivityIndicator style={{ marginTop: 50 }} color="#0A1D56" />
+               {loading && collections.length === 0 ? (
+                    <CollectionSkeleton repeat={8} />
                 ) : (
                     <FlatList
                         data={collections} // Use full list from state
