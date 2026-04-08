@@ -3,13 +3,13 @@ import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Divider, Switch, Text } from 'react-native-paper';
-
+import api from '../../services/api';
 
 
 export default function AccountScreen() {
   const [isBiometricsEnabled, setIsBiometricsEnabled] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
-
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   const handleLogout = () => {
     console.log('User logged out');
@@ -20,18 +20,63 @@ export default function AccountScreen() {
     (async () => {
       const reg = await SecureStore.getItemAsync('biometric_registered');
       const en = await SecureStore.getItemAsync('biometrics_enabled');
+      const email = await SecureStore.getItemAsync('user_email');
+
+      setUserEmail(email);
       setIsRegistered(reg === 'true');
-      setIsBiometricsEnabled(en === 'true');
+
+      if (reg !== 'true') {
+        setIsBiometricsEnabled(false);
+        await SecureStore.setItemAsync('biometrics_enabled', 'false');
+      } else {
+        setIsBiometricsEnabled(en === 'true');
+      }
     })();
   }, []);
 
-  const handleToggle = async (value: boolean) => {
-    if (!isRegistered) {
-      Alert.alert("Notice", "Please register biometrics at the login screen first.");
+  const handleToggleBiometrics = async (value: boolean) => {
+    // 1. If user is trying to turn it ON but isn't registered yet
+    if (value === true && !isRegistered) {
+      setIsBiometricsEnabled(false); // Keep switch OFF in UI until registered
+
+      Alert.alert(
+        "Registration Required",
+        "You haven't set up biometrics for this device yet. Would you like to register now?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Register",
+            onPress: async () => {
+              try {
+                // Call the backend endpoint to request the Biometric OTP
+                const response = await api.post('/biometrics/request-otp', {
+                  email: userEmail
+                });
+
+                if (response.status === 200) {
+                  // On success, navigate to the verification screen
+                  router.push({
+                    pathname: '/screens/verify-otp-account',
+                    params: {
+                      email: userEmail,
+                      type: 'biometric'
+                    }
+                  });
+                }
+              } catch (error: any) {
+                const errorMsg = error.response?.data?.message || "Failed to send verification code.";
+                Alert.alert("Error", errorMsg);
+              }
+            }
+          }
+        ]
+      );
       return;
     }
-    await SecureStore.setItemAsync('biometrics_enabled', value.toString());
+
+    // 2. If user is already registered, just toggle the preference locally
     setIsBiometricsEnabled(value);
+    await SecureStore.setItemAsync('biometrics_enabled', value.toString());
   };
 
   // Reusable Component for the Menu Items
@@ -90,8 +135,8 @@ export default function AccountScreen() {
           rightElement={
             <Switch
               value={isBiometricsEnabled}
-              onValueChange={() => setIsBiometricsEnabled(!isBiometricsEnabled)}
-              color="#3134d4"
+              onValueChange={handleToggleBiometrics}
+              color="#0D0F66"
             />
           }
         />

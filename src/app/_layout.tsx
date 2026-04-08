@@ -242,6 +242,21 @@ export default function RootLayout() {
               headerTitleAlign: 'left',
 
             }} />
+
+            <Stack.Screen name="screens/verify-otp-account" options={{
+              presentation: 'fullScreenModal',
+              title: 'Biometric Authentication',
+              headerStyle: {
+                backgroundColor: '#0A0B32',
+              },
+              headerTintColor: '#fff',
+              headerTitleStyle: {
+                fontWeight: 800,
+                fontSize: 30,
+              },
+              headerTitleAlign: 'left',
+
+            }} />
           </Stack>
 
 

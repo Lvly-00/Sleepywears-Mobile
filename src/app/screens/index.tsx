@@ -34,6 +34,7 @@ export default function LoginScreen() {
     const [rememberedEmail, setRememberedEmail] = useState<string | null>(null);
     const [rememberedName, setRememberedName] = useState<string | null>(null);
     const [isBiometricRegistered, setIsBiometricRegistered] = useState(false);
+    const [isBiometricEnabled, setIsBiometricEnabled] = useState(false);
 
 
     useEffect(() => {
@@ -53,6 +54,7 @@ export default function LoginScreen() {
         const storedEmail = await SecureStore.getItemAsync('user_email');
         const storedName = await SecureStore.getItemAsync('user_name');
         const registered = await SecureStore.getItemAsync('biometric_registered');
+        const enabled = await SecureStore.getItemAsync('biometrics_enabled');
 
         // Check 90 days inactivity logic
         if (lastActivity && storedEmail) {
@@ -72,6 +74,7 @@ export default function LoginScreen() {
             }
         }
         setIsBiometricRegistered(registered === 'true');
+        setIsBiometricEnabled(enabled === 'true');
     };
 
     const updateActivityTimestamp = async () => {
@@ -159,7 +162,7 @@ export default function LoginScreen() {
         if (!isBiometricRegistered) {
             // --- REGISTRATION FLOW (Calling Backend) ---
             setLoading(true);
-            setEmailError(''); 
+            setEmailError('');
             try {
                 // Call the specific biometric OTP endpoint in your AuthController
                 const response = await api.post('/biometrics/request-otp', {
@@ -243,9 +246,9 @@ export default function LoginScreen() {
                         <Text style={styles.readyText}>Hello,</Text>
                         <View style={styles.nameLine}>
                             <Text style={styles.nameText}>{rememberedName}!</Text>
-                            {/* <TouchableOpacity onPress={handleSwitchAccount} style={styles.switchIconBtn}>
+                            <TouchableOpacity onPress={handleSwitchAccount} style={styles.switchIconBtn}>
                                 <MaterialCommunityIcons name="swap-horizontal" size={22} color="white" />
-                            </TouchableOpacity> */}
+                            </TouchableOpacity>
                         </View>
                     </View>
                 ) : (
@@ -355,12 +358,15 @@ export default function LoginScreen() {
                     )}
 
                     {rememberedEmail && (
-                        <TouchableOpacity onPress={handleBiometricAction} style={styles.biometricsContainer}>
-                            <MaterialCommunityIcons name="face-recognition" size={22} color={PRIMARY_BLUE} />
-                            <Text style={styles.biometrics}>
-                                {isBiometricRegistered ? 'Login with Biometrics' : 'Register Biometrics'}
-                            </Text>
-                        </TouchableOpacity>
+                        (!isBiometricRegistered || (isBiometricRegistered && isBiometricEnabled)) ? (
+
+                            <TouchableOpacity onPress={handleBiometricAction} style={styles.biometricsContainer}>
+                                <MaterialCommunityIcons name="face-recognition" size={22} color={PRIMARY_BLUE} />
+                                <Text style={styles.biometrics}>
+                                    {isBiometricRegistered ? 'Login with Biometrics' : 'Register Biometrics'}
+                                </Text>
+                            </TouchableOpacity>
+                        ) : null
 
                     )}
 
@@ -505,6 +511,7 @@ const styles = StyleSheet.create({
         marginLeft: 100,
         padding: 6,
         borderRadius: 20,
+        marginBottom: 25,
     },
 
 });
