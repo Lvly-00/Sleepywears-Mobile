@@ -2,9 +2,10 @@ import SuccessModal from '@/src/components/success-modal';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ItemCard } from '../../components/item-card';
 import { DeleteConfirmationModal } from '../../components/item-delete-confirmation';
+import ItemSkeleton from '../../components/items-skeleton-loader';
 import FabScreenWrapper from '../../components/ui/fab-screen-wrapper';
 import api from '../../services/api';
 
@@ -116,7 +117,8 @@ export default function ItemsScreen() {
 
             <View style={styles.container}>
                 {loading && items.length === 0 ? (
-                    <ActivityIndicator size="large" color="#1C4D8D" style={{ marginTop: 50 }} />
+                    // Replaced ActivityIndicator with ItemSkeleton
+                    <ItemSkeleton repeat={12} />
                 ) : (
                     <FlatList
                         data={items}
