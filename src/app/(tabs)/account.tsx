@@ -2,7 +2,8 @@ import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Divider, Switch, Text } from 'react-native-paper';
+import { Divider, Provider, Switch, Text } from 'react-native-paper';
+import { BiometricRegisterModal } from '../../components/biometric-register';
 import api from '../../services/api';
 
 
@@ -10,6 +11,8 @@ export default function AccountScreen() {
   const [isBiometricsEnabled, setIsBiometricsEnabled] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+
 
   const handleLogout = () => {
     console.log('User logged out');
@@ -34,70 +37,46 @@ export default function AccountScreen() {
     })();
   }, []);
 
+
+  const handleRegisterBiometrics = async () => {
+    try {
+      const response = await api.post('/biometrics/request-otp', {
+        email: userEmail
+      });
+
+      if (response.status === 200) {
+        router.push({
+          pathname: '/screens/verify-otp-account',
+          params: { email: userEmail, type: 'biometric' }
+        });
+      }
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.message || "Failed to send verification code.";
+      Alert.alert("Error", errorMsg);
+    }
+  };
+
   const handleToggleBiometrics = async (value: boolean) => {
-    // 1. If user is trying to turn it ON but isn't registered yet
     if (value === true && !isRegistered) {
-      setIsBiometricsEnabled(false); // Keep switch OFF in UI until registered
-
-      Alert.alert(
-        "Registration Required",
-        "You haven't set up biometrics for this device yet. Would you like to register now?",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Register",
-            onPress: async () => {
-              try {
-                // Call the backend endpoint to request the Biometric OTP
-                const response = await api.post('/biometrics/request-otp', {
-                  email: userEmail
-                });
-
-                if (response.status === 200) {
-                  // On success, navigate to the verification screen
-                  router.push({
-                    pathname: '/screens/verify-otp-account',
-                    params: {
-                      email: userEmail,
-                      type: 'biometric'
-                    }
-                  });
-                }
-              } catch (error: any) {
-                const errorMsg = error.response?.data?.message || "Failed to send verification code.";
-                Alert.alert("Error", errorMsg);
-              }
-            }
-          }
-        ]
-      );
+      setIsBiometricsEnabled(false);
+      setIsModalVisible(true); // Open custom modal instead of Alert
       return;
     }
 
-    // 2. If user is already registered, just toggle the preference locally
     setIsBiometricsEnabled(value);
     await SecureStore.setItemAsync('biometrics_enabled', value.toString());
   };
 
-  // Reusable Component for the Menu Items
   const MenuItem = ({ title, onPress, defaultColor = '#1A1C3D', activeColor = '#3134d4', rightElement }: any) => {
     return (
       <Pressable
         onPress={onPress}
         disabled={!onPress && !rightElement}
-        style={({ pressed }) => [
-          styles.menuItem,
-          pressed && { backgroundColor: '#F0F0F0' } // Slight background darken on press
-        ]}
+        style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: '#F0F0F0' }]}
       >
         {({ pressed }) => (
           <>
-            <Text
-              style={[
-                styles.menuText,
-                { color: pressed ? activeColor : defaultColor } // Text changes color on press
-              ]}
-            >
+            <Text style={[styles.menuText, { color: pressed ? activeColor : defaultColor }]}>
               {title}
             </Text>
             {rightElement && <View>{rightElement}</View>}
@@ -108,53 +87,60 @@ export default function AccountScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      {/* MENU SECTION */}
-      <View style={styles.menuSection}>
-        <MenuItem
-          title="Profile Information"
-          defaultColor="#0A0B32"
-          onPress={() => router.push('/screens/profile-information')}
-        />
+    <Provider>
+      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+        {/* MENU SECTION */}
+        <View style={styles.menuSection}>
+          <MenuItem
+            title="Profile Information"
+            defaultColor="#0A0B32"
+            onPress={() => router.push('/screens/profile-information')}
+          />
 
-        <MenuItem
-          title="Update Password"
-          defaultColor="#0A0B32"
-          onPress={() => router.push('/screens/update-password')}
-        />
+          <MenuItem
+            title="Update Password"
+            defaultColor="#0A0B32"
+            onPress={() => router.push('/screens/update-password')}
+          />
 
-        <MenuItem
-          title="Notification Center"
-          defaultColor="#0A0B32"
-          onPress={() => router.push('/screens/notification-center')}
-        />
+          <MenuItem
+            title="Notification Center"
+            defaultColor="#0A0B32"
+            onPress={() => router.push('/screens/notification-center')}
+          />
 
-        {/* BIOMETRICS TOGGLE */}
-        <MenuItem
-          title="Biometrics"
-          rightElement={
-            <Switch
-              value={isBiometricsEnabled}
-              onValueChange={handleToggleBiometrics}
-              color="#0D0F66"
-            />
-          }
-        />
+          {/* BIOMETRICS TOGGLE */}
+          <MenuItem
+            title="Biometrics"
+            rightElement={
+              <Switch
+                value={isBiometricsEnabled}
+                onValueChange={handleToggleBiometrics}
+                color="#0D0F66"
+              />
+            }
+          />
 
-        <View style={styles.dividerContainer}>
-          <Divider style={styles.divider} />
+          <View style={styles.dividerContainer}>
+            <Divider style={styles.divider} />
+          </View>
+
+          <MenuItem
+            title="Logout"
+            defaultColor="#FF3B30"
+            activeColor="#B02A22"
+            onPress={handleLogout}
+          />
         </View>
 
-        <MenuItem
-          title="Logout"
-          defaultColor="#FF3B30"
-          activeColor="#B02A22"
-          onPress={handleLogout}
+        <BiometricRegisterModal
+          visible={isModalVisible}
+          onClose={() => setIsModalVisible(false)}
+          onConfirm={handleRegisterBiometrics}
         />
-      </View>
-
-      {/* <Text style={styles.versionText}>Version 1.0.2 (Build 24)</Text> */}
-    </ScrollView>
+        {/* <Text style={styles.versionText}>Version 1.0.2 (Build 24)</Text> */}
+      </ScrollView>
+    </Provider >
   );
 }
 

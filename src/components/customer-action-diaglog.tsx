@@ -1,7 +1,7 @@
 import { Customer } from '@/src/types/customer';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Dialog, Divider, Portal, Text } from 'react-native-paper';
+import { Dialog, Portal, Text } from 'react-native-paper';
 
 interface ActionDialogProps {
   visible: boolean;
@@ -11,13 +11,21 @@ interface ActionDialogProps {
   onDelete: (customer: Customer) => void;
 }
 
+// Reference Design Colors
+const DELETE_RED = '#FF4646';
+const PRIMARY_BLUE = '#0A256C';
+const CANCEL_GRAY = '#b9b9b9';
+const TEXT_MAIN = '#1A1A1A';
+const TEXT_SUB = '#4F4F4F';
+
 export const CustomerActionDialog = ({ visible, customer, onDismiss, onEdit, onDelete }: ActionDialogProps) => {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   // Reset state when modal closes
   useEffect(() => {
     if (!visible) {
-      setTimeout(() => setIsConfirmingDelete(false), 200);
+      const timer = setTimeout(() => setIsConfirmingDelete(false), 200);
+      return () => clearTimeout(timer);
     }
   }, [visible]);
 
@@ -28,63 +36,62 @@ export const CustomerActionDialog = ({ visible, customer, onDismiss, onEdit, onD
   return (
     <Portal>
       <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
-        {!isConfirmingDelete ? (
-          <View>
-            <View style={styles.headerContainer}>
-              <Text style={styles.mainTitle}>What would you like to do?</Text>
-              <Text style={styles.subTitle}>
-                Would you like to edit or delete <Text style={styles.boldText}>{customerFullName}</Text>?
-              </Text>
-            </View>
+        <View style={styles.container}>
 
-            <Divider style={styles.divider} />
+          {!isConfirmingDelete ? (
+            /* --- SELECTION STATE --- */
+            <>
+              <View style={styles.headerContainer}>
+                <Text style={styles.mainTitle}>What would you like to do?</Text>
+                <Text style={styles.subTitle}>
+                  Would you like to edit or delete <Text style={styles.boldText}>{customerFullName}</Text>?
+                </Text>
+              </View>
 
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => { onEdit(customer); onDismiss(); }}
-            >
-              <Text style={styles.editText}>Edit</Text>
-            </TouchableOpacity>
+              <View style={styles.buttonRow}>
+                <TouchableOpacity
+                  style={[styles.outlineButton, { borderColor: PRIMARY_BLUE }]}
+                  onPress={() => { onEdit(customer); onDismiss(); }}
+                >
+                  <Text style={[styles.outlineButtonText, { color: PRIMARY_BLUE }]}>Edit</Text>
+                </TouchableOpacity>
 
-            <Divider style={styles.divider} />
+                <TouchableOpacity
+                  style={[styles.outlineButton, { borderColor: DELETE_RED }]}
+                  onPress={() => setIsConfirmingDelete(true)}
+                >
+                  <Text style={[styles.outlineButtonText, { color: DELETE_RED }]}>Delete</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          ) : (
+            /* --- CONFIRMATION STATE --- */
+            <>
+              <View style={styles.headerContainer}>
+                <Text style={styles.mainTitle}>Delete Confirmation</Text>
+                <Text style={styles.subTitle}>
+                  Are you sure you want to delete <Text style={styles.boldText}>{customerFullName}</Text>?
+                </Text>
+              </View>
 
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => setIsConfirmingDelete(true)}
-            >
-              <Text style={styles.deleteText}>Delete</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View>
-            <View style={styles.headerContainer}>
-              <Text style={styles.mainTitle}>Delete Confirmation</Text>
-              <Text style={styles.subTitle}>
-                Are you sure you want to delete <Text style={styles.boldText}>{customerFullName}</Text>?
-              </Text>
-            </View>
+              <View style={styles.buttonRow}>
+                <TouchableOpacity
+                  style={[styles.outlineButton, { borderColor: CANCEL_GRAY }]}
+                  onPress={() => setIsConfirmingDelete(false)}
+                >
+                  <Text style={[styles.outlineButtonText, { color: CANCEL_GRAY }]}>Cancel</Text>
+                </TouchableOpacity>
 
-            <Divider style={styles.divider} />
-
-            <View style={styles.row}>
-              <TouchableOpacity
-                style={styles.halfButton}
-                onPress={() => setIsConfirmingDelete(false)}
-              >
-                <Text style={styles.cancelText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <View style={styles.verticalDivider} />
-
-              <TouchableOpacity
-                style={styles.halfButton}
-                onPress={() => { onDelete(customer); onDismiss(); }}
-              >
-                <Text style={styles.confirmDeleteText}>Delete</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
+                <TouchableOpacity
+                  style={[styles.outlineButton, { borderColor: DELETE_RED }]}
+                  onPress={() => { onDelete(customer); onDismiss(); }}
+                >
+                  <Text style={[styles.outlineButtonText, { color: DELETE_RED }]}>Delete</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </View>
       </Dialog>
     </Portal>
   );
@@ -93,77 +100,73 @@ export const CustomerActionDialog = ({ visible, customer, onDismiss, onEdit, onD
 const styles = StyleSheet.create({
   dialog: {
     backgroundColor: '#FFF',
-    borderRadius: 25,
-    overflow: 'hidden',
-    paddingHorizontal: 0,
-    paddingVertical: 0,
+    borderRadius: 12, // Matching the slight rounding in the image
+    padding: 0,
+    marginHorizontal: 20,
   },
-  headerContainer: {
-    paddingHorizontal: 30,
-    paddingBottom: 25,
+  container: {
+    paddingVertical: 20,
+    paddingHorizontal: 20,
     alignItems: 'center',
   },
+  headerContainer: {
+    alignItems: 'center',
+    marginBottom: 35,
+  },
   mainTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#000',
+    color: '#1A1A1A',
     textAlign: 'center',
     marginBottom: 15,
+    marginTop: -10,
   },
   subTitle: {
     fontSize: 16,
-    color: '#000',
+    color: '#4F4F4F',
     textAlign: 'center',
-    lineHeight: 22,
+    paddingHorizontal: 10,
   },
   boldText: {
-    fontWeight: 'bold',
-    color: '#000',
+    fontWeight: '700',
+    color: '#4F4F4F',
   },
-  divider: {
-    backgroundColor: '#E0E0E0',
-    height: 1,
-    width: '100%',
-  },
-  actionButton: {
-    width: '100%',
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  row: {
+  buttonRow: {
     flexDirection: 'row',
     width: '100%',
+    justifyContent: 'space-between',
   },
-  halfButton: {
+  // Matches the "Cancel" button style in your image
+  outlineButton: {
     flex: 1,
-    paddingVertical: 18,
+    height: 52,
+    borderWidth: 1,
+    borderColor: '#b9b9b9',
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 8,
   },
-  verticalDivider: {
-    width: 1,
-    backgroundColor: '#E0E0E0',
-    height: '100%',
+  // Matches the "Delete" button style in your image
+  solidButton: {
+    flex: 1,
+    height: 52,
+    borderWidth: 1,
+    borderColor: DELETE_RED,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    // marginRight: 8,
+    // backgroundColor: DELETE,
   },
-  editText: {
-    fontSize: 20,
-    color: '#007AFF',
-    fontWeight: 'bold',
+  outlineButtonText: {
+    fontSize: 18,
+    color: '#b9b9b9',
+    fontWeight: '600',
   },
-  deleteText: {
-    fontSize: 20,
-    color: '#FF0000',
-    fontWeight: 'bold',
-  },
-  cancelText: {
-    fontSize: 20,
-    color: '#2A3C82',
-    fontWeight: 'bold',
-  },
-  confirmDeleteText: {
-    fontSize: 20,
-    color: '#FF0000',
-    fontWeight: 'bold',
+  solidButtonText: {
+    fontSize: 18,
+    color: DELETE_RED,
+    fontWeight: '600',
   },
 });
