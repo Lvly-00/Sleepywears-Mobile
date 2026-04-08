@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Button, HelperText, Text, TextInput } from 'react-native-paper';
 import api from '../services/api';
+import ItemFormSkeleton from './item-form-skeleton-loader';
 import SuccessModal from './success-modal';
 
 const { width } = Dimensions.get('window');
@@ -26,6 +27,8 @@ interface ItemFormProps {
 }
 
 export default function ItemForm({ mode, initialData, collectionId }: ItemFormProps) {
+
+    const [isPageLoading, setIsPageLoading] = useState(mode === 'edit' && !initialData);
 
     const fixImageUrl = (url?: string | null): string | null => {
         if (!url) return null;
@@ -47,11 +50,11 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
         return url;
     };
 
-    
+
 
     const [name, setName] = useState(initialData?.name || "");
     const [price, setPrice] = useState(initialData?.price != null ? formatCurrency(String(initialData.price)) : ''
-        );
+    );
 
     const [status, setStatus] = useState(initialData?.status || "Available");
 
@@ -62,7 +65,7 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
     const [errors, setErrors] = useState({ name: "", price: "", image: "" });
 
 
-      function formatCurrency(val: string) {
+    function formatCurrency(val: string) {
         const digits = val.replace(/\D/g, '');
         if (!digits) return '';
         return new Intl.NumberFormat('en-PH', {
@@ -71,8 +74,11 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
             minimumFractionDigits: 0,
         }).format(parseInt(digits));
     }
+    
     useEffect(() => {
         if (initialData) {
+            setIsPageLoading(false);
+
             const imgPath = initialData.image || initialData.image_url;
 
             if (imgPath) {
@@ -185,6 +191,11 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
             }
         }
     };
+
+    if (isPageLoading) {
+        return <ItemFormSkeleton />;
+    }
+
 
     const InputLabel = ({ title }: { title: string }) => (
         <Text style={styles.label}>{title} <Text style={{ color: '#E70B0B' }}>*</Text></Text>

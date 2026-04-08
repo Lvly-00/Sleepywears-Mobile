@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "SLEEPYWEARS",
+    "name": "sleepywears",
     "slug": "sleepywearsMobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -39,6 +39,14 @@
           "imageWidth": 300,
           "resizeMode": "contain",
           "backgroundColor": "#0A0B32"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
         }
       ],
       "expo-font",
