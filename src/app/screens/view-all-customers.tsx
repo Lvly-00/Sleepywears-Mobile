@@ -1,8 +1,10 @@
 import api from '@/src/services/api';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, SectionList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SectionList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Divider, Searchbar } from 'react-native-paper';
+import CustomerSkeleton from '../../components/customer-skeleton-loader';
+
 
 // Define the shape of your customer based on your Laravel controller
 interface Customer {
@@ -76,6 +78,18 @@ export default function ViewAllCustomersScreen() {
         });
     };
 
+    const renderEmptyState = () => (
+        <View style={styles.emptyContainer}>
+            <Text style={styles.emptyTitle}>No customers found</Text>
+            <Text style={styles.emptySubtitle}>
+                {searchQuery
+                    ? `We couldn't find any results for "${searchQuery}"`
+                    : "Your customer list is currently empty."}
+            </Text>
+        </View>
+    );
+
+
     return (
         <View style={styles.container}>
             <View style={styles.headerPadding}>
@@ -92,7 +106,7 @@ export default function ViewAllCustomersScreen() {
 
             <View style={styles.listContainer}>
                 {loading && customers.length === 0 ? (
-                    <ActivityIndicator style={{ flex: 1 }} color="#0D0F66" />
+                    <CustomerSkeleton repeatSections={4} itemsPerSection={5} />
                 ) : (
                     <SectionList
                         sections={sections}
@@ -109,24 +123,38 @@ export default function ViewAllCustomersScreen() {
                             </View>
                         )}
                         stickySectionHeadersEnabled={false}
-                        contentContainerStyle={{ paddingBottom: 40 }}
+                        contentContainerStyle={customers.length === 0 ? { flex: 1 } : { paddingBottom: 40 }}
+                        // THIS HANDLES THE EMPTY STATE
+                        ListEmptyComponent={renderEmptyState}
                     />
                 )}
 
-                {/* Vertical Alphabet Sidebar */}
-                <View style={styles.alphabetSidebar}>
-                    {ALPHABET.map(char => (
-                        <Text key={char} style={styles.alphabetChar}>{char}</Text>
-                    ))}
-                </View>
+                {/* Vertical Alphabet Sidebar - Only show if there are customers */}
+                {customers.length > 0 && (
+                    <View style={styles.alphabetSidebar}>
+                        {ALPHABET.map(char => (
+                            <Text key={char} style={styles.alphabetChar}>{char}</Text>
+                        ))}
+                    </View>
+                )}
             </View>
         </View>
     );
 }
 
+
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#FFF' },
-    headerPadding: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 5 },
+    container: {
+        flex: 1,
+        backgroundColor: '#FFF',
+    },
+
+    headerPadding: {
+        paddingHorizontal: 20,
+        paddingTop: 10,
+        paddingBottom: 5,
+    },
+
     searchBar: {
         backgroundColor: '#FFF',
         borderWidth: 1,
@@ -134,13 +162,78 @@ const styles = StyleSheet.create({
         height: 45,
         borderRadius: 10,
     },
-    searchInput: { fontSize: 14, minHeight: 0 },
-    listContainer: { flex: 1, flexDirection: 'row' },
-    sectionHeader: { backgroundColor: '#FFF', paddingHorizontal: 20, marginTop: 15 },
-    sectionHeaderText: { fontSize: 14, fontWeight: 'bold', color: '#AAA', marginBottom: 5 },
-    divider: { height: 1, backgroundColor: '#F0F0F0' },
-    item: { paddingVertical: 15, paddingHorizontal: 20 },
-    itemText: { fontSize: 16, color: '#333' },
-    alphabetSidebar: { width: 25, alignItems: 'center', justifyContent: 'flex-start', paddingTop: 10 },
-    alphabetChar: { fontSize: 10, fontWeight: '700', color: '#0D0F66', marginVertical: 1 },
+
+    searchInput: {
+        fontSize: 14,
+        minHeight: 0,
+    },
+
+    listContainer: {
+        flex: 1,
+        flexDirection: 'row',
+    },
+
+    sectionHeader: {
+        backgroundColor: '#FFF',
+        paddingHorizontal: 20,
+        marginTop: 15,
+    },
+
+    sectionHeaderText: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#AAA',
+        marginBottom: 5,
+    },
+
+    divider: {
+        height: 1,
+        backgroundColor: '#F0F0F0',
+    },
+
+    item: {
+        paddingVertical: 15,
+        paddingHorizontal: 20,
+    },
+
+    itemText: {
+        fontSize: 16,
+        color: '#333',
+    },
+
+    alphabetSidebar: {
+        width: 25,
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        paddingTop: 10,
+    },
+
+    alphabetChar: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#0D0F66',
+        marginVertical: 1,
+    },
+
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 40,
+        marginTop: -70,
+    },
+
+    emptyTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#1A1A1A',
+        marginBottom: 8,
+    },
+
+    emptySubtitle: {
+        fontSize: 14,
+        color: '#666',
+        textAlign: 'center',
+        lineHeight: 20,
+    },
 });

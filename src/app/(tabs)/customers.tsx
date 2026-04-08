@@ -7,6 +7,7 @@ import { ActivityIndicator, Searchbar } from 'react-native-paper';
 import { AlphabetSidebar } from '../../components/alphabet-sidebar';
 import { CustomerActionDialog } from '../../components/customer-action-diaglog';
 import CustomerSkeleton from '../../components/customer-skeleton-loader';
+
 export default function CustomersScreen() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");

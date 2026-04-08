@@ -1,5 +1,6 @@
 import React from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Dialog, Portal, Text } from 'react-native-paper';
 
 interface ActionModalProps {
     visible: boolean;
@@ -7,9 +8,15 @@ interface ActionModalProps {
     orderId: string | number;
     onAddPayment: () => void;
     onDeletePress: () => void;
-    showAddPayment?: boolean;
     isPaid?: boolean;
 }
+
+// Design Constants
+const DELETE_RED = '#FF4646';
+const PAYMENT_GREEN = '#64A77D';
+const CANCEL_GRAY = '#b9b9b9';
+const TEXT_MAIN = '#1A1A1A';
+const TEXT_SUB = '#4F4F4F';
 
 export const OrderActionModal = ({
     visible,
@@ -20,94 +27,135 @@ export const OrderActionModal = ({
     isPaid
 }: ActionModalProps) => {
     return (
-        <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-            <TouchableOpacity
-                style={styles.overlay}
-                activeOpacity={1}
-                onPress={onClose}
-            >
-                <TouchableWithoutFeedback>
-                    <View style={styles.container}>
-                        <Text style={styles.title}>What would you like to do?</Text>
+        <Portal>
+            <Dialog visible={visible} onDismiss={onClose} style={styles.dialog}>
+                <View style={styles.container}>
 
-                        <Text style={styles.subtitle}>
+                    {/* Header Section */}
+                    <View style={styles.headerContainer}>
+                        <Text style={styles.mainTitle}>What would you like to do?</Text>
+                        <Text style={styles.subTitle}>
                             {isPaid
-                                ? `Would you like to delete Order `
-                                : `Would you like to add payment or delete Order `
-                            }
-                            <Text style={{ fontWeight: 'bold' }}>#{orderId}</Text>?
+                                ? "Would you like to delete "
+                                : "Would you like to add payment or delete "}
+                            Order <Text style={styles.boldText}>#{orderId}</Text>?
                         </Text>
-
-                        {/* Only show Add Payment if the order is NOT paid */}
-                        {!isPaid && (
-                            <TouchableOpacity style={[styles.button, styles.borderTop]} onPress={onAddPayment}>
-                                <Text style={styles.addPaymentText}>Add Payment</Text>
-                            </TouchableOpacity>
-                        )}
-
-                        <TouchableOpacity style={[styles.button, styles.borderTop]} onPress={onDeletePress}>
-                            <Text style={styles.deleteText}>Delete Order</Text>
-                        </TouchableOpacity>
                     </View>
-                </TouchableWithoutFeedback>
-            </TouchableOpacity>
-        </Modal>
+
+                    {/* Action Buttons Row */}
+                    <View style={styles.buttonRow}>
+                        {!isPaid ? (
+                            <>
+                                {/* Add Payment Button */}
+                                <TouchableOpacity
+                                    style={[styles.outlineButton, { borderColor: PAYMENT_GREEN }]}
+                                    onPress={() => {
+                                        onAddPayment();
+                                        onClose();
+                                    }}
+                                >
+                                    <Text style={[styles.outlineButtonText, { color: PAYMENT_GREEN }]}>
+                                        Add Payment
+                                    </Text>
+                                </TouchableOpacity>
+
+                                {/* Delete Button */}
+                                <TouchableOpacity
+                                    style={[styles.outlineButton, { borderColor: DELETE_RED }]}
+                                    onPress={() => {
+                                        onDeletePress();
+                                        onClose();
+                                    }}
+                                >
+                                    <Text style={[styles.outlineButtonText, { color: DELETE_RED }]}>
+                                        Delete
+                                    </Text>
+                                </TouchableOpacity>
+                            </>
+                        ) : (
+                            <>
+                                {/* Cancel/Back Button */}
+                                <TouchableOpacity
+                                    style={[styles.outlineButton, { borderColor: CANCEL_GRAY }]}
+                                    onPress={onClose}
+                                >
+                                    <Text style={[styles.outlineButtonText, { color: CANCEL_GRAY }]}>
+                                        Cancel
+                                    </Text>
+                                </TouchableOpacity>
+
+                                {/* Delete Button */}
+                                <TouchableOpacity
+                                    style={[styles.outlineButton, { borderColor: DELETE_RED }]}
+                                    onPress={() => {
+                                        onDeletePress();
+                                        onClose();
+                                    }}
+                                >
+                                    <Text style={[styles.outlineButtonText, { color: DELETE_RED }]}>
+                                        Delete
+                                    </Text>
+                                </TouchableOpacity>
+                            </>
+                        )}
+                    </View>
+                </View>
+            </Dialog>
+        </Portal>
     );
 };
 
-
 const styles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
+    dialog: {
+        backgroundColor: '#FFF',
+        borderRadius: 12,
+        padding: 0,
+        marginHorizontal: 20,
     },
-
     container: {
-        width: '85%',
-        backgroundColor: 'white',
-        borderRadius: 20,
-        overflow: 'hidden',
-        alignItems: 'center',
-        paddingTop: 20,
-    },
-
-    title: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#000',
-        marginBottom: 15,
-    },
-
-    subtitle: {
-        fontSize: 15,
-        textAlign: 'center',
-        color: '#333',
+        paddingVertical: 25,
         paddingHorizontal: 20,
-        marginBottom: 20,
-    },
-
-    button: {
-        width: '100%',
-        paddingVertical: 15,
         alignItems: 'center',
     },
-
-    borderTop: {
-        borderTopWidth: 1,
-        borderTopColor: '#E0E0E0',
+    headerContainer: {
+        alignItems: 'center',
+        marginBottom: 35,
     },
-
-    addPaymentText: {
-        color: '#64A77D',
-        fontSize: 18,
-        fontWeight: '600',
+    mainTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: TEXT_MAIN,
+        textAlign: 'center',
+        marginBottom: 15,
+        marginTop: -20,
     },
-
-    deleteText: {
-        color: '#FE1900',
-        fontSize: 18,
+    subTitle: {
+        fontSize: 16,
+        color: TEXT_SUB,
+        textAlign: 'center',
+        paddingHorizontal: 10,
+        lineHeight: 22,
+    },
+    boldText: {
+        fontWeight: '700',
+        color: TEXT_MAIN,
+    },
+    buttonRow: {
+        flexDirection: 'row',
+        width: '100%',
+        justifyContent: 'space-between',
+        gap: 12,
+    },
+    outlineButton: {
+        flex: 1,
+        height: 52,
+        borderWidth: 1,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    outlineButtonText: {
+        fontSize: 16,
         fontWeight: '600',
     },
 });

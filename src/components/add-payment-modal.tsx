@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Divider, Modal, Portal, Text } from "react-native-paper";
+import { Dialog, Portal, Text } from "react-native-paper";
 
 interface Order {
   id: number;
@@ -23,6 +23,14 @@ interface AddPaymentModalProps {
   order: Order | null;
   onOrderUpdated: (updatedOrder: any) => void;
 }
+
+// Reference Design Constants
+const PRIMARY_BLUE = '#0A256C';
+const PAYMENT_GREEN = '#64A77D';
+const CANCEL_GRAY = '#b9b9b9';
+const TEXT_MAIN = '#1A1A1A';
+const TEXT_SUB = '#4F4F4F';
+const SUCCESS_GREEN = '#65A781';
 
 const AddPaymentModal = ({ visible, onClose, order, onOrderUpdated }: AddPaymentModalProps) => {
   const [method, setMethod] = useState<string>("");
@@ -59,32 +67,31 @@ const AddPaymentModal = ({ visible, onClose, order, onOrderUpdated }: AddPayment
 
   return (
     <Portal>
-      <Modal
+      <Dialog
         visible={visible}
         onDismiss={!submitting ? onClose : undefined}
-        contentContainerStyle={styles.modalContainer}
+        style={styles.dialog}
       >
-        <View style={styles.content}>
+        <View style={styles.container}>
+
           {/* 1. HEADER SECTION */}
-          <View style={styles.header}>
-            <Text style={styles.title}>Payment Method</Text>
-            <Text style={styles.subText}>
-              Select a payment method for {"\n"}
+          <View style={styles.headerContainer}>
+            <Text style={styles.mainTitle}>Payment Method</Text>
+            <Text style={styles.subTitle}>
+              Select a payment method for{"\n"}
               <Text style={styles.boldText}>
-                <Text style={styles.boldText}>
-                  {order?.first_name
-                    ? `${order.first_name} ${order.last_name}`
-                    : (order?.customer_name || "Guest")}
-                 
-                </Text>             
-                 </Text>
+                {order?.first_name
+                  ? `${order.first_name} ${order.last_name}`
+                  : (order?.customer_name || "Guest")}
+              </Text>
             </Text>
+
             <Text style={styles.amountText}>
               ₱{Number(order?.total || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
             </Text>
           </View>
 
-          {/* 2. SYMMETRICAL 2x2 SELECTION SECTION */}
+          {/* 2. GRID SELECTION */}
           <View style={styles.methodGrid}>
             {paymentMethods.map((m) => (
               <TouchableOpacity
@@ -103,152 +110,154 @@ const AddPaymentModal = ({ visible, onClose, order, onOrderUpdated }: AddPayment
                 ]}>
                   {m}
                 </Text>
-                {method === m && <View style={styles.checkMark} />}
               </TouchableOpacity>
             ))}
           </View>
 
-          {/* 3. FOOTER ACTIONS */}
-          <View style={styles.footer}>
+          {/* 3. BUTTON ROW ACTIONS */}
+          <View style={styles.buttonRow}>
             <TouchableOpacity
-              style={styles.actionButton}
+              style={styles.outlineButton}
+              onPress={onClose}
+              disabled={submitting}
+            >
+              <Text style={styles.outlineButtonText}>Cancel</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.solidButton,
+                { borderColor: method ? PAYMENT_GREEN : '#E5E5E5' }
+              ]}
               onPress={handleSave}
               disabled={!method || submitting}
             >
-              <Divider style={styles.topDivider} />
               {submitting ? (
-                <ActivityIndicator color="#65A781" />
+                <ActivityIndicator color={PAYMENT_GREEN} size="small" />
               ) : (
-                <Text style={[styles.confirmText, !method && styles.disabledText]}>
+                <Text style={[
+                  styles.solidButtonText,
+                  !method && { color: '#CCC' }
+                ]}>
                   Confirm Payment
                 </Text>
               )}
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={onClose}
-              disabled={submitting}
-            >
-              <Divider style={styles.topDivider} />
-              <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
           </View>
+
         </View>
-      </Modal>
+      </Dialog>
     </Portal>
   );
 };
 
 const styles = StyleSheet.create({
-  modalContainer: {
-    backgroundColor: "white",
-    marginHorizontal: 40,
-    borderRadius: 14,
-    overflow: "hidden",
+  dialog: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 0,
+    marginHorizontal: 20,
   },
-  content: {
-    paddingTop: 24,
+  container: {
+    paddingVertical: 25,
+    paddingHorizontal: 20,
+    alignItems: 'center',
   },
-  header: {
-    alignItems: "center",
-    paddingHorizontal: 10,
-    marginBottom: 20,
+  headerContainer: {
+    alignItems: 'center',
+    marginBottom: 25,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#000",
-    marginBottom: 4,
+  mainTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: TEXT_MAIN,
+    textAlign: 'center',
+    marginBottom: 10,
+    marginTop: -10,
   },
-  subText: {
-    fontSize: 14,
-    color: "#000",
-    textAlign: "center",
-    lineHeight: 18,
+  subTitle: {
+    fontSize: 16,
+    color: TEXT_SUB,
+    textAlign: 'center',
+    lineHeight: 22,
   },
   boldText: {
-    fontWeight: "800",
-    color: "#000000",
+    fontWeight: '700',
+    color: TEXT_MAIN,
   },
   amountText: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#5D4324",
-    marginTop: 12,
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#5D4324', // Keeping your brand brown for the amount
+    marginTop: 15,
   },
-  // 2x2 Grid Layout
+  // Selection Grid
   methodGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    marginBottom: 24,
+    width: '100%',
+    marginBottom: 30,
   },
   methodBox: {
-    width: "48%", // Symmetrical 2x2
-    height: 40,
-    borderRadius: 8, // Less rounded, more modern iOS style
+    width: "48%",
+    height: 48,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: "#E5E5E5",
     backgroundColor: "#F8F8F8",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 10,
-    position: 'relative',
+    marginBottom: 12,
   },
   methodBoxSelected: {
-    backgroundColor: "#232D80",
-    borderColor: "#3946be",
+    backgroundColor: PRIMARY_BLUE,
+    borderColor: PRIMARY_BLUE,
   },
   methodText: {
-    fontSize: 15,
-    color: "#555",
+    fontSize: 16,
+    color: TEXT_SUB,
     fontWeight: "500",
   },
   methodTextSelected: {
     color: "white",
     fontWeight: "600",
   },
-  checkMark: {
-    position: 'absolute',
-    top: 5,
-    right: 8,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'white',
+  // Footer Button Row
+  buttonRow: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
   },
-  // Footer
-  footer: {
-    width: "100%",
-  },
-  actionButton: {
-    width: "100%",
+  outlineButton: {
+    flex: 1,
     height: 52,
-    justifyContent: "center",
-    alignItems: "center",
+    borderWidth: 1,
+    borderColor: CANCEL_GRAY,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
   },
-  topDivider: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: "#F0F0F0",
-  },
-  confirmText: {
+  outlineButtonText: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: "#65A781",
+    color: CANCEL_GRAY,
+    fontWeight: '600',
   },
-  cancelText: {
+  solidButton: {
+    flex: 1,
+    height: 52,
+    borderWidth: 1,
+    borderColor: PAYMENT_GREEN,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  solidButtonText: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: "#FF3B30",
-  },
-  disabledText: {
-    color: "#D1E3D8",
+    color: PAYMENT_GREEN,
+    fontWeight: '600',
   },
 });
 
