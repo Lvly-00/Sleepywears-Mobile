@@ -13,7 +13,7 @@ export default function AccountScreen() {
 
   const handleLogout = () => {
     console.log('User logged out');
-    router.replace('/screens');
+    router.replace('/');
   };
 
   useEffect(() => {

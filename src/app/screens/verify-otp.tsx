@@ -80,7 +80,7 @@ export default function VerifyOtpScreen() {
                     await SecureStore.setItemAsync('biometric_registered', 'true');
                     await SecureStore.setItemAsync('biometrics_enabled', 'true');
                     Alert.alert("Success", "Biometrics authorized! You can now login with FaceID.");
-                    router.replace('/screens');
+                    router.replace('/');
                 } else {
                     // Logic for Password Reset Success
                     router.push({ pathname: '/screens/reset-password', params: { email, otp } });

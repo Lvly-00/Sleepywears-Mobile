@@ -38,7 +38,7 @@ export default function UpdatePasswordScreen() {
                         onPress: async () => {
                             await AsyncStorage.removeItem('authToken');
                             // setHasToken(false);
-                            router.replace('/screens');
+                            router.replace('/');
 
                         }
                     }

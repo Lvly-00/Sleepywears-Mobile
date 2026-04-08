@@ -69,7 +69,7 @@ export default function ResetPasswordScreen() {
             // Redirect after 3 seconds
             setTimeout(() => {
                 setShowSuccessModal(false);
-                router.replace('/screens');
+                router.replace('/');
             }, 3000);
         } catch (error: any) {
             setLoading(false);
@@ -178,7 +178,7 @@ export default function ResetPasswordScreen() {
                     </HelperText>
 
                     <TouchableOpacity
-                        onPress={() => router.replace('/screens')}
+                        onPress={() => router.replace('/')}
                         style={styles.backToLoginContainer}
                     >
                         <Text style={styles.backToLoginText}>Back to Login</Text>
