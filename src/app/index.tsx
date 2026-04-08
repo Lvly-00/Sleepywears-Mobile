@@ -6,9 +6,9 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import { Alert, Dimensions, Image, ImageBackground, Keyboard, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, HelperText, Text, TextInput } from 'react-native-paper';
-import SuccessModal from '../../components/success-modal';
-import api from '../../services/api';
-import { loginUser } from '../../services/authService';
+import SuccessModal from '../components/success-modal';
+import api from '../services/api';
+import { loginUser } from '../services/authService';
 
 const { width } = Dimensions.get('window');
 const ERROR_COLOR = '#9E2626';
@@ -16,6 +16,7 @@ const PRIMARY_BLUE = '#0D0F66';
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
 export default function LoginScreen() {
+    
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -229,12 +230,12 @@ export default function LoginScreen() {
                 message="The biometric authorization code has been sent!"
             />
             <ImageBackground
-                source={require('../../../assets/images/blue-banner.png')}
+                source={require('../../assets/images/blue-banner.png')}
                 style={styles.headerBackground}
                 resizeMode="cover"
             >
                 <Image
-                    source={require('../../../assets/images/logo-white.png')}
+                    source={require('../../assets/images/logo-white.png')}
                     style={styles.logoImage}
                     resizeMode="cover"
                 />
