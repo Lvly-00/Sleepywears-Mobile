@@ -9,6 +9,7 @@ import AddPaymentModal from '../../components/add-payment-modal';
 import { OrderActionModal } from '../../components/order-action-modal';
 import { DeleteConfirmModal } from '../../components/order-delete-confirmation';
 import OrderItem from '../../components/order-item';
+import OrderSkeleton from '../../components/order-skeleton-loader';
 import FabScreenWrapper from '../../components/ui/fab-screen-wrapper';
 
 export default function OrdersScreen() {
@@ -201,7 +202,7 @@ export default function OrdersScreen() {
           />
 
           {loading && orders.length === 0 ? (
-            <ActivityIndicator style={{ marginTop: 50 }} color="#0A256C" size="large" />
+            <OrderSkeleton repeat={10} />
           ) : (
             <FlatList
               data={orders}
