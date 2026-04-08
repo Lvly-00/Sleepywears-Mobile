@@ -7,11 +7,13 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Dimensions, Image, ImageBackground, Keyboard, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, HelperText, Text, TextInput } from 'react-native-paper';
 import SuccessModal from '../../components/success-modal';
+import api from '../../services/api';
 import { loginUser } from '../../services/authService';
 
 const { width } = Dimensions.get('window');
-
 const ERROR_COLOR = '#9E2626';
+const PRIMARY_BLUE = '#0D0F66';
+const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
 export default function LoginScreen() {
     const [email, setEmail] = useState('');
@@ -29,11 +31,13 @@ export default function LoginScreen() {
     const [isLocked, setIsLocked] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false); // Add this state
 
+    const [rememberedEmail, setRememberedEmail] = useState<string | null>(null);
+    const [rememberedName, setRememberedName] = useState<string | null>(null);
     const [isBiometricRegistered, setIsBiometricRegistered] = useState(false);
 
 
     useEffect(() => {
-        checkBiometricStatus();
+        checkSession();
         let internal: number;
         if (timer > 0) {
             internal = setInterval(() => setTimer((prev) => prev - 1), 1000);
@@ -44,9 +48,34 @@ export default function LoginScreen() {
         return () => clearInterval(internal);
     }, [timer, isLocked]);
 
-    const checkBiometricStatus = async () => {
+    const checkSession = async () => {
+        const lastActivity = await SecureStore.getItemAsync('last_activity');
+        const storedEmail = await SecureStore.getItemAsync('user_email');
+        const storedName = await SecureStore.getItemAsync('user_name');
         const registered = await SecureStore.getItemAsync('biometric_registered');
+
+        // Check 90 days inactivity logic
+        if (lastActivity && storedEmail) {
+            const now = Date.now();
+            const elapsed = now - parseInt(lastActivity);
+
+            if (elapsed > NINETY_DAYS_MS) {
+                // Wipe session if inactive for more than 90 days
+                await SecureStore.deleteItemAsync('user_email');
+                await SecureStore.deleteItemAsync('access_token');
+                await SecureStore.deleteItemAsync('last_activity');
+                setRememberedEmail(null);
+            } else {
+                setRememberedEmail(storedEmail);
+                setRememberedName(storedName);
+                setEmail(storedEmail);
+            }
+        }
         setIsBiometricRegistered(registered === 'true');
+    };
+
+    const updateActivityTimestamp = async () => {
+        await SecureStore.setItemAsync('last_activity', Date.now().toString());
     };
 
 
@@ -79,7 +108,9 @@ export default function LoginScreen() {
             const response = await loginUser(email, password);
             if (response.token) {
                 await SecureStore.setItemAsync('access_token', response.token);
-                await SecureStore.setItemAsync('user_email', email);
+                await SecureStore.setItemAsync('user_email', email.trim().toLowerCase());
+                await SecureStore.setItemAsync('user_name', response.user.name);
+                await updateActivityTimestamp();
                 router.replace('/(tabs)/dashboard');
             }
         } catch (error: any) {
@@ -101,6 +132,21 @@ export default function LoginScreen() {
         }
     };
 
+    const handleSwitchAccount = async () => {
+        await SecureStore.deleteItemAsync('user_email');
+        await SecureStore.deleteItemAsync('user_name');
+        await SecureStore.deleteItemAsync('access_token');
+        await SecureStore.deleteItemAsync('last_activity');
+        await SecureStore.deleteItemAsync('biometric_registered');
+
+        setRememberedEmail(null);
+        setRememberedName(null);
+        setIsBiometricRegistered(false);
+        setEmail('');
+        setPassword('');
+    };
+
+
 
     const handleBiometricAction = async () => {
         if (!email) {
@@ -111,41 +157,66 @@ export default function LoginScreen() {
         const normalizedEmail = email.trim().toLowerCase();
 
         if (!isBiometricRegistered) {
-            // ... (keep your existing Registration flow code here)
+            // --- REGISTRATION FLOW (Calling Backend) ---
+            setLoading(true);
+            setEmailError(''); 
+            try {
+                // Call the specific biometric OTP endpoint in your AuthController
+                const response = await api.post('/biometrics/request-otp', {
+                    email: normalizedEmail
+                });
+
+                // Show success feedback
+                setShowSuccessModal(true);
+
+                setTimeout(() => {
+                    setShowSuccessModal(false);
+                    router.push({
+                        pathname: '/screens/verify-otp',
+                        params: {
+                            email: normalizedEmail,
+                            type: 'biometric' // Passing type so verify-otp knows which API to call next
+                        }
+                    });
+                }, 2000);
+
+            } catch (error: any) {
+                let msg = error.response?.data?.message || "Failed to send biometric code. Please try again.";
+                setEmailError(msg);
+                Alert.alert("Error", msg);
+            } finally {
+                setLoading(false);
+            }
+
         } else {
-            // --- LOGIN FLOW ---
+            // --- LOGIN FLOW (Local Authentication) ---
             if (biometricFailures >= 3) {
-                Alert.alert("Locked", "Face not recognized too many times. Use password.");
+                Alert.alert("Security Lock", "Too many attempts. Please use your password.");
                 return;
             }
 
             const result = await LocalAuthentication.authenticateAsync({
-                promptMessage: 'Login with Face Recognition',
-                cancelLabel: 'Use Password'
+                promptMessage: 'Login with Biometrics',
+                cancelLabel: 'Use Password',
             });
 
             if (result.success) {
-                // Check if we have a valid session token stored
                 const token = await SecureStore.getItemAsync('access_token');
-
                 if (token) {
                     setBiometricFailures(0);
-                    // Update activity timestamp so the timer doesn't immediately log you out
-                    await SecureStore.setItemAsync('last_activity', Date.now().toString());
+                    await updateActivityTimestamp();
                     router.replace('/(tabs)/dashboard');
                 } else {
-                    // This happens if the session was cleared
-                    Alert.alert(
-                        "Session Expired",
-                        "Please login with your password once to re-enable biometrics."
-                    );
+                    Alert.alert("Session Expired", "Please login with password once to re-sync.");
+                    await handleSwitchAccount();
                 }
             } else {
-                setBiometricFailures(prev => prev + 1);
+                if (result.error !== 'user_cancel') {
+                    setBiometricFailures(prev => prev + 1);
+                }
             }
         }
     };
-
 
     return (
         <View style={styles.container}>
@@ -167,41 +238,59 @@ export default function LoginScreen() {
             </ImageBackground>
 
             <View style={styles.content}>
-                <Text style={styles.loginTitle}>LOGIN</Text>
+                {rememberedEmail ? (
+                    <View style={styles.personalizedContainer}>
+                        <Text style={styles.readyText}>Hello,</Text>
+                        <View style={styles.nameLine}>
+                            <Text style={styles.nameText}>{rememberedName}!</Text>
+                            {/* <TouchableOpacity onPress={handleSwitchAccount} style={styles.switchIconBtn}>
+                                <MaterialCommunityIcons name="swap-horizontal" size={22} color="white" />
+                            </TouchableOpacity> */}
+                        </View>
+                    </View>
+                ) : (
+                    <Text style={styles.loginTitle}>LOGIN</Text>
+
+                )}
 
                 <View style={styles.form}>
                     {/* Email Input */}
-                    <TextInput
-                        label="Email"
-                        value={email}
-                        editable={!loading && !isLocked}
-                        onChangeText={(text) => {
-                            setEmail(text);
-                            if (emailError) setEmailError('');
-                        }}
-                        keyboardType='email-address'
-                        autoComplete='email'
-                        textContentType='emailAddress'
-                        mode="flat"
-                        activeUnderlineColor="#0D0F66"
-                        underlineColor="#0D0F66"
-                        error={!!emailError}
-                        style={styles.input}
-                        textColor="#818181"
-                        autoCapitalize="none"
-                        theme={{
-                            colors: {
-                                onSurfaceVariant: '#0D0F66',
-                                error: ERROR_COLOR
-                            }
-                        }}
-                    />
-                    <HelperText
-                        type="error"
-                        visible={!!emailError}
-                        style={[styles.helper, { color: ERROR_COLOR }]}  >
-                        {emailError}
-                    </HelperText>
+                    {!rememberedEmail && (
+                        <View>
+                            <TextInput
+                                label="Email"
+                                value={email}
+                                editable={!loading && !isLocked}
+                                onChangeText={(text) => {
+                                    setEmail(text);
+                                    if (emailError) setEmailError('');
+                                }}
+                                keyboardType='email-address'
+                                autoComplete='email'
+                                textContentType='emailAddress'
+                                mode="flat"
+                                activeUnderlineColor="#0D0F66"
+                                underlineColor="#0D0F66"
+                                error={!!emailError}
+                                style={styles.input}
+                                textColor="#818181"
+                                autoCapitalize="none"
+                                theme={{
+                                    colors: {
+                                        onSurfaceVariant: '#0D0F66',
+                                        error: ERROR_COLOR
+                                    }
+                                }}
+                            />
+                            <HelperText
+                                type="error"
+                                visible={!!emailError}
+                                style={[styles.helper, { color: ERROR_COLOR }]}  >
+                                {emailError}
+                            </HelperText>
+                        </View>
+                    )}
+
 
                     {/* Password Input */}
                     <TextInput
@@ -265,13 +354,15 @@ export default function LoginScreen() {
                         </TouchableOpacity>
                     )}
 
+                    {rememberedEmail && (
+                        <TouchableOpacity onPress={handleBiometricAction} style={styles.biometricsContainer}>
+                            <MaterialCommunityIcons name="face-recognition" size={22} color={PRIMARY_BLUE} />
+                            <Text style={styles.biometrics}>
+                                {isBiometricRegistered ? 'Login with Biometrics' : 'Register Biometrics'}
+                            </Text>
+                        </TouchableOpacity>
 
-                    <TouchableOpacity onPress={handleBiometricAction} style={styles.biometricsContainer}>
-                        <MaterialCommunityIcons name="face-recognition" size={20} color="#0D0F66" />
-                        <Text style={styles.biometrics}>
-                            {isBiometricRegistered ? 'Login with Biometrics' : 'Register with Biometrics'}
-                        </Text>
-                    </TouchableOpacity>
+                    )}
 
                     <Button
                         mode="contained"
@@ -286,7 +377,7 @@ export default function LoginScreen() {
                     </Button>
                 </View>
             </View>
-        </View>
+        </View >
     );
 }
 
@@ -389,4 +480,31 @@ const styles = StyleSheet.create({
         fontWeight: '500',
         textDecorationLine: 'underline',
     },
+    personalizedContainer: {
+        alignItems: 'flex-start',
+    },
+    readyText: {
+        fontSize: 30,
+        // fontWeight: '700',
+        color: '#05083E',
+        marginBottom: 5,
+        fontFamily: 'serif',
+    },
+    nameLine: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    nameText: {
+        color: '#05083E',
+        fontSize: 32,
+        fontWeight: '700',
+        fontFamily: 'serif',
+        marginBottom: 25,
+    },
+    switchIconBtn: {
+        marginLeft: 100,
+        padding: 6,
+        borderRadius: 20,
+    },
+
 });
