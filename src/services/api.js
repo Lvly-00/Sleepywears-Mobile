@@ -7,7 +7,6 @@ let isRedirecting = false;
 
 const api = axios.create({
     baseURL: API_URL,
-    timeout: 15000,
     headers: {
         'Accept': "application/json",
         "Content-Type": "application/json",
