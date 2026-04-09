@@ -103,11 +103,11 @@ export default function AccountScreen() {
             onPress={() => router.push('/screens/update-password')}
           />
 
-          <MenuItem
+          {/* <MenuItem
             title="Notification Center"
             defaultColor="#0A0B32"
             onPress={() => router.push('/screens/notification-center')}
-          />
+          /> */}
 
           {/* BIOMETRICS TOGGLE */}
           <MenuItem

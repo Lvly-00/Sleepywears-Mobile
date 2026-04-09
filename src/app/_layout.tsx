@@ -229,7 +229,7 @@ export default function RootLayout() {
 
             }} />
 
-            <Stack.Screen name="screens/notification-center" options={{
+            {/* <Stack.Screen name="screens/notification-center" options={{
               presentation: 'fullScreenModal',
               title: 'Notification Center',
               headerStyle: {
@@ -242,7 +242,7 @@ export default function RootLayout() {
               },
               headerTitleAlign: 'left',
 
-            }} />
+            }} /> */}
 
             <Stack.Screen name="screens/view-all-customers" options={{
               presentation: 'fullScreenModal',
