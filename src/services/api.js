@@ -17,19 +17,13 @@ const api = axios.create({
 
 api.interceptors.request.use(
     async (config) => {
-        try {
-            // Remove this after testing!
-            Alert.alert("Sending Request To:", `${config.baseURL}${config.url}`);
+        const token = await SecureStore.getItemAsync("access_token");
+        console.log("DEBUG: Token found for request:", token ? "YES (starts with " + token.substring(0, 5) + ")" : "NO");
 
-            const token = await SecureStore.getItemAsync("access_token");
-            if (token) {
-                config.headers.Authorization = `Bearer ${token}`;
-            }
-            return config;
-        } catch (e) {
-            console.error("Interceptor error", e);
-            return config;
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
         }
+        return config;
     },
     (error) => Promise.reject(error)
 );

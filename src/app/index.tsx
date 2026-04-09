@@ -120,8 +120,31 @@ export default function LoginScreen() {
                 router.replace('/(tabs)/dashboard');
             }
         } catch (error: any) {
-            Alert.alert("Final Debug", error.message);
-            handleFailedAttempt();
+            // --- DETAILED DEBUGGING LOGIC ---
+            if (error.response) {
+                // The server responded with a status code (4xx, 5xx)
+                const status = error.response.status;
+                const serverMsg = JSON.stringify(error.response.data);
+
+                if (status === 404) {
+                    Alert.alert("Error 404", "Endpoint not found. Check if /api is correct in your URL.");
+                } else if (status === 401 || status === 403) {
+                    Alert.alert("Access Denied", "Invalid credentials or CORS block.");
+                    handleFailedAttempt();
+                } else {
+                    Alert.alert("Server Error", `Status: ${status}\n${serverMsg}`);
+                }
+            } else if (error.request) {
+                // The request was made but no response was received
+                // This is usually where the "Render Cold Start" or "Wrong URL" hits
+                Alert.alert(
+                    "Connection Failed",
+                    "No response from server. If using Render Free Tier, the server might be 'waking up'. Please wait 30 seconds and try again."
+                );
+            } else {
+                // Something happened in setting up the request
+                Alert.alert("App Error", error.message);
+            }
         } finally {
             setLoading(false);
         }

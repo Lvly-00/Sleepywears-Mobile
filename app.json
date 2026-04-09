@@ -18,7 +18,7 @@
       "package": "com.lyly0101.sleepywearsmobile",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon-logo.png",
-        "backgroundColor": "#0A0B32"
+        "backgroundColor": "#02034C"
       }
     },
     "web": {
@@ -37,7 +37,7 @@
         {
           "image": "./assets/images/icon-logo.png",
           "resizeMode": "contain",
-          "backgroundColor": "#0A0B32"
+          "backgroundColor": "#02034C"
         }
       ],
       [
