@@ -9,7 +9,13 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk" 
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://sleepywear-backend.onrender.com/api"
+      }
     },
     "production": {
       "autoIncrement": true,
@@ -21,6 +27,4 @@
   "submit": {
     "production": {}
   }
-
-  
 }
