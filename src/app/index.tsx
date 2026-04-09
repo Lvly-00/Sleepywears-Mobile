@@ -16,7 +16,7 @@ const PRIMARY_BLUE = '#0D0F66';
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
 export default function LoginScreen() {
-    
+
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -93,6 +93,8 @@ export default function LoginScreen() {
     };
 
     const handleLogin = async () => {
+        Alert.alert("Debug", "URL: " + process.env.EXPO_PUBLIC_API_URL);
+
         Keyboard.dismiss();
         setEmailError('');
         setPasswordError('');

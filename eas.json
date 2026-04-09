@@ -11,7 +11,7 @@
     "preview": {
       "distribution": "internal",
       "android": {
-        "buildType": "apk" 
+        "buildType": "apk"
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://sleepywear-backend.onrender.com/api"

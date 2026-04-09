@@ -4,7 +4,7 @@
     "slug": "sleepywearsMobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/app-icon.png",
+    "icon": "./assets/images/icon-logo.png",
     "scheme": "sleepywearsmobile",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -17,13 +17,13 @@
     "android": {
       "package": "com.lyly0101.sleepywearsmobile",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/logo-white.png",
+        "foregroundImage": "./assets/images/icon-logo.png",
         "backgroundColor": "#0A0B32"
       }
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/logo-white.png"
+      "favicon": "./assets/images/icon-logo.png"
     },
     "plugins": [
       [
@@ -35,8 +35,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/logo-white.png",
-          "imageWidth": 300,
+          "image": "./assets/images/icon-logo.png",
           "resizeMode": "contain",
           "backgroundColor": "#0A0B32"
         }

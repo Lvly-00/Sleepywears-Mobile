@@ -7,6 +7,7 @@ let isRedirecting = false;
 
 const api = axios.create({
     baseURL: API_URL,
+    timeout: 15000,
     headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
@@ -38,7 +39,7 @@ api.interceptors.response.use(
                 isRedirecting = true;
                 console.warn("⚠️ Session expired — clearing storage and redirecting...");
 
-                const cacheKeys = ["access_token", "email"]; 
+                const cacheKeys = ["access_token", "email"];
                 await Promise.all(cacheKeys.map((key) => SecureStore.deleteItemAsync(key)));
 
                 resetToLogin();
