@@ -9,18 +9,27 @@ const api = axios.create({
     baseURL: API_URL,
     timeout: 15000,
     headers: {
-        Accept: "application/json",
+        'Accept': "application/json",
         "Content-Type": "application/json",
+        'X-Requested-With': 'XMLHttpRequest',
     },
 });
 
 api.interceptors.request.use(
     async (config) => {
-        const token = await SecureStore.getItemAsync("access_token");
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
+        try {
+            // Remove this after testing!
+            Alert.alert("Sending Request To:", `${config.baseURL}${config.url}`);
+
+            const token = await SecureStore.getItemAsync("access_token");
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+            }
+            return config;
+        } catch (e) {
+            console.error("Interceptor error", e);
+            return config;
         }
-        return config;
     },
     (error) => Promise.reject(error)
 );

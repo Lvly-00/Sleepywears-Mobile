@@ -120,6 +120,7 @@ export default function LoginScreen() {
                 router.replace('/(tabs)/dashboard');
             }
         } catch (error: any) {
+            Alert.alert("Final Debug", error.message);
             handleFailedAttempt();
         } finally {
             setLoading(false);
