@@ -43,7 +43,10 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
 
     // Format Date object to YYYY-MM-DD string for PHP backend
     const formatDateString = (dateObj: Date) => {
-        return dateObj.toISOString().split('T')[0];
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     };
 
     const handleSubmit = async () => {

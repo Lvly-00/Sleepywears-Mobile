@@ -41,7 +41,7 @@ api.interceptors.response.use(
                 isRedirecting = true;
                 console.warn("⚠️ Session expired — clearing storage and redirecting...");
 
-                const cacheKeys = ["access_token", "email"];
+                const cacheKeys = ["access_token", "user_email"];
                 await Promise.all(cacheKeys.map((key) => SecureStore.deleteItemAsync(key)));
 
                 resetToLogin();
