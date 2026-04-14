@@ -7,18 +7,21 @@
     "icon": "./assets/images/icon-logo.png",
     "scheme": "sleepywearsmobile",
     "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "com.lyly0101.sleepywearsmobile",
+      "permissions": [
+        "INTERNET"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon-logo.png",
+        "backgroundColor": "#02034C"
+      }
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "y",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
-    },
-    "android": {
-      "package": "com.lyly0101.sleepywearsmobile",
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon-logo.png",
-        "backgroundColor": "#02034C"
       }
     },
     "web": {
@@ -44,6 +47,9 @@
         "expo-build-properties",
         {
           "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "minSdkVersion": 24,
             "usesCleartextTraffic": true
           }
         }
