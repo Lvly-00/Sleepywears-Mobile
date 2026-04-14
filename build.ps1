@@ -1,10 +1,11 @@
 # ============================================
 # COMPLETE CLEAN BUILD SCRIPT FOR EXPO ANDROID
 # ============================================
-# RUN THIS FROM: C:\Users\ly\Documents\Coding\ISPM-App Dev Project\Sleepywears-Mobile
+# RUN THIS FROM: C:\Users\ly\Documents\Coding\ISPM-AppDev\Sleepywears-Mobile\android
+# 
 # ============================================
 
-Write-Host "📂 Current directory should be: C:\Users\ly\Documents\Coding\ISPM-App Dev Project\Sleepywears-Mobile" -ForegroundColor Yellow
+Write-Host "📂 Current directory should be:C:\Users\ly\Documents\Coding\ISPM-AppDev\Sleepywears-Mobile" -ForegroundColor Yellow
 Write-Host "🛑 Killing Java and Node processes..." -ForegroundColor Cyan
 taskkill /F /IM java.exe 2>$null
 taskkill /F /IM node.exe 2>$null
@@ -57,10 +58,12 @@ if (Test-Path $manifestPath) {
         $content = $content -replace $pattern, $replacement
         $content | Set-Content $manifestPath
         Write-Host "✅ Patched AndroidManifest.xml" -ForegroundColor Green
-    } else {
+    }
+    else {
         Write-Host "✅ usesCleartextTraffic already present." -ForegroundColor Green
     }
-} else {
+}
+else {
     Write-Host "❌ Manifest not found at $manifestPath" -ForegroundColor Red
 }
 
@@ -76,4 +79,4 @@ Write-Host "📂 Opening APK folder..." -ForegroundColor Green
 explorer android\app\build\outputs\apk\release\
 
 Write-Host "✅ Build complete! APK location:" -ForegroundColor Green
-Write-Host "C:\Users\ly\Documents\Coding\ISPM-App Dev Project\Sleepywears-Mobile\android\app\build\outputs\apk\release\app-release.apk" -ForegroundColor Yellow
+Write-Host "C:\Users\ly\Documents\Coding\ISPM-AppDev\Sleepywears-Mobile\android\app\build\outputs\apk\release\app-release.apk" -ForegroundColor Yellow
