@@ -1,7 +1,7 @@
 import SuccessModal from '@/src/components/success-modal';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ItemCard } from '../../components/item-card';
 import { DeleteConfirmationModal } from '../../components/item-delete-confirmation';
@@ -10,6 +10,7 @@ import FabScreenWrapper from '../../components/ui/fab-screen-wrapper';
 import api from '../../services/api';
 
 export default function ItemsScreen() {
+    const [collectionCapital, setCollectionCapital] = useState(0);
     const { collectionId, collectionName } = useLocalSearchParams<{ collectionId: string, collectionName: string }>();
     const [items, setItems] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -18,6 +19,14 @@ export default function ItemsScreen() {
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [modalState, setModalState] = useState({ visible: false, loading: false, msg: "" });
 
+    // 1. Calculate Totals (using frontend calculation so it updates instantly on delete)
+    const totals = useMemo(() => {
+        const totalPrice = items.reduce((sum, item) => sum + Number(item.price || 0), 0);
+        return {
+            capital: collectionCapital,
+            revenue: totalPrice - collectionCapital
+        };
+    }, [items, collectionCapital]);
 
     const isSelectionMode = selectedIds.size > 0;
 
@@ -26,7 +35,12 @@ export default function ItemsScreen() {
         try {
             setLoading(true);
             const res = await api.get('/items', { params: { collection_id: collectionId } });
-            setItems(res.data);
+
+            if (res.data && Array.isArray(res.data.items)) {
+                setItems(res.data.items);
+                // Store the capital from the collections table
+                setCollectionCapital(Number(res.data.collection_capital || 0));
+            }
         } catch (err) {
             console.error('Fetch error:', err);
         } finally {
@@ -65,19 +79,37 @@ export default function ItemsScreen() {
         }
     };
 
+    // 2. Summary Header Component
+    const SummaryHeader = () => (
+        <View style={styles.summaryContainer}>
+            <View style={styles.statBox}>
+                <Text style={styles.statLabel}>Capital</Text>
+                <Text style={[styles.statValue, { color: '#0f0f0f' }]}>
+                    ₱{totals.capital.toLocaleString()}
+                </Text>
+            </View>
+            <View style={styles.statSeparator} />
+            <View style={styles.statBox}>
+                <Text style={styles.statLabel}>Revenue</Text>
+                <Text style={[
+                    styles.statValue,
+                    { color: totals.revenue >= 0 ? '#22c55e' : '#ef4444' }
+                ]}>
+                    ₱{totals.revenue.toLocaleString()}
+                </Text>
+            </View>
+        </View>
+    );
+
     const renderHeaderRight = () => {
         if (!isSelectionMode) return null;
-        const selectedItem = items.find(i => i.id === Array.from(selectedIds)[0]);
-        const isSoldOut = selectedItem?.status === "Sold Out" || selectedItem?.is_available === false;
-
-
         return (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
                 <TouchableOpacity onPress={() => setSelectedIds(new Set(items.map(i => i.id)))}>
                     <MaterialCommunityIcons name="select-all" size={24} color="#ffffff" />
                 </TouchableOpacity>
 
-                {selectedIds.size === 1 && !isSoldOut && (
+                {selectedIds.size === 1 && (
                     <TouchableOpacity onPress={() => {
                         const item = items.find(i => i.id === Array.from(selectedIds)[0]);
                         router.push({ pathname: '/screens/edit-item', params: { item: JSON.stringify(item), collectionId } });
@@ -114,10 +146,8 @@ export default function ItemsScreen() {
                 }}
             />
 
-
             <View style={styles.container}>
                 {loading && items.length === 0 ? (
-                    // Replaced ActivityIndicator with ItemSkeleton
                     <ItemSkeleton repeat={12} />
                 ) : (
                     <FlatList
@@ -126,7 +156,8 @@ export default function ItemsScreen() {
                         keyExtractor={(item) => item.id.toString()}
                         columnWrapperStyle={items.length > 0 ? styles.row : undefined}
                         contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
-                        // 3. Display message when list is empty
+                        // 3. Show stats even if list is empty
+                        ListHeaderComponent={<SummaryHeader />}
                         ListEmptyComponent={
                             <View style={styles.emptyContainer}>
                                 <MaterialCommunityIcons name="image-off-outline" size={60} color="#ccc" />
@@ -146,8 +177,6 @@ export default function ItemsScreen() {
                 )}
             </View>
 
-
-
             <DeleteConfirmationModal
                 visible={isModalVisible}
                 title="Delete Confirmation"
@@ -160,7 +189,6 @@ export default function ItemsScreen() {
                 isLoading={modalState.loading}
                 message={modalState.msg}
             />
-
         </FabScreenWrapper>
     );
 }
@@ -169,18 +197,52 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         paddingHorizontal: 10,
-        paddingTop: 20,
-
+        paddingTop: 10,
     },
     row: {
         justifyContent: 'flex-start',
         gap: 10
     },
+    summaryContainer: {
+        flexDirection: 'row',
+        backgroundColor: '#ffffff',
+        borderRadius: 15,
+        padding: 16,
+        marginBottom: 15,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 4,
+        borderWidth: 1,
+        borderColor: '#f0f0f0',
+    },
+    statBox: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    statSeparator: {
+        width: 1,
+        height: '80%',
+        backgroundColor: '#eee',
+        alignSelf: 'center',
+    },
+    statLabel: {
+        fontSize: 11,
+        color: '#888',
+        textTransform: 'uppercase',
+        fontWeight: '700',
+        marginBottom: 4,
+    },
+    statValue: {
+        fontSize: 18,
+        fontWeight: '800',
+    },
     emptyContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        marginTop: 100
+        marginTop: 50
     },
     emptyText: {
         fontSize: 18,
@@ -191,5 +253,4 @@ const styles = StyleSheet.create({
     fabScreenWrapper: {
         paddingBottom: 20,
     },
-
 });

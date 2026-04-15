@@ -8,8 +8,9 @@ interface CollectionCardProps {
     id: number;
     name: string;
     status: string;
-    available_count: number; // Updated from backend
-    total_sales: number;     // Updated from backend
+    available_count: number; 
+    total_sales: number;     
+    revenue: number;
   };
   onPress: () => void;
   onLongPress: (item: any) => void;
@@ -44,7 +45,7 @@ export const CollectionCard = ({ item, onPress, onLongPress }: CollectionCardPro
           <Text style={styles.subText}>
             {isActive
               ? `${count} ${count === 1 ? 'item left' : 'items left'}`
-              : `You've earned ₱${item.total_sales?.toLocaleString() || 0} for this collection`
+              : `You've earned ₱${item.revenue?.toLocaleString() || 0} for this collection`
             }
           </Text>
         </View>
