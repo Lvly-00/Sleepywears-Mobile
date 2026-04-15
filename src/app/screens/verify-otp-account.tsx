@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as SecureStore from 'expo-secure-store'; // Added Import
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Dimensions, TextInput as RNTextInput, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Dimensions, TextInput as RNTextInput, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, HelperText, Text } from 'react-native-paper';
 import SuccessModal from '../../components/success-modal';
 import api from '../../services/api';
@@ -21,6 +21,9 @@ export default function VerifyOtpAccountScreen() {
 
     const [isFocused, setIsFocused] = useState(false);
     const [cursorVisible, setCursorVisible] = useState(true);
+    const [modalMessage, setModalMessage] = useState('');
+    const [modalType, setModalType] = useState<'success' | 'error'>('success');
+    const [modalLoading, setModalLoading] = useState(false);
 
     useEffect(() => {
         const interval = setInterval(() => setCursorVisible((v) => !v), 500);
@@ -47,7 +50,11 @@ export default function VerifyOtpAccountScreen() {
             const endpoint = type === 'biometric' ? '/biometrics/request-otp' : '/passwords/forgot';
             await api.post(endpoint, { email });
             setTimer(60);
-            Alert.alert("Success", "A new code has been sent.");
+            setModalMessage("A new code has been sent.");
+            setModalType('success');
+            setShowSuccessModal(true);
+
+            setTimeout(() => setShowSuccessModal(false), 2000);
         } catch (err: any) {
             setError("Failed to resend code.");
         } finally {
@@ -72,17 +79,26 @@ export default function VerifyOtpAccountScreen() {
 
             await api.post(endpoint, { email, otp });
 
+            setModalMessage("Verifying code...");
+            setModalLoading(true);
             setShowSuccessModal(true);
-
             setTimeout(async () => {
                 setShowSuccessModal(false);
-
+                setModalLoading(false);
+                setModalMessage("Code verified successfully!");
+                setModalType('success');
                 if (type === 'biometric') {
                     // Logic for Biometric Success
                     await SecureStore.setItemAsync('biometric_registered', 'true');
                     await SecureStore.setItemAsync('biometrics_enabled', 'true');
-                    Alert.alert("Success", "Biometrics authorized! You can now login with FaceID.");
-                    router.replace('/');
+                    setModalMessage("Biometrics authorized! You can now login.");
+                    setModalType('success');
+                    setShowSuccessModal(true);
+
+                    setTimeout(() => {
+                        setShowSuccessModal(false);
+                        router.replace('/');
+                    }, 2000);
                 } else {
                     // Logic for Password Reset Success
                     router.push({ pathname: '/screens/reset-password', params: { email, otp } });
@@ -116,9 +132,12 @@ export default function VerifyOtpAccountScreen() {
     return (
         <View style={styles.container}>
             <StatusBar style="light" />
-            <SuccessModal visible={showSuccessModal} message="Code verified successfully!" />
-
-
+            <SuccessModal
+                visible={showSuccessModal}
+                message={modalMessage}
+                isLoading={modalLoading}
+                type={modalType}
+            />
             <View style={styles.content}>
                 <Text style={styles.loginTitle}>Verify with Email</Text>
                 <Text style={styles.subtitle}>Enter the 6-digit code sent to your email to continue.</Text>
@@ -159,14 +178,12 @@ export default function VerifyOtpAccountScreen() {
     );
 }
 
-// ... styles remain the same
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#FFFFFF',
     },
-
 
     content: {
         flex: 1,
@@ -178,6 +195,7 @@ const styles = StyleSheet.create({
         fontSize: 40,
         fontWeight: '700',
         color: '#05083E',
+        alignSelf: "center"
     },
 
     subtitle: {
@@ -186,6 +204,8 @@ const styles = StyleSheet.create({
         marginTop: 5,
         marginBottom: 25,
         lineHeight: 20,
+        alignSelf: "center"
+
     },
 
     form: {

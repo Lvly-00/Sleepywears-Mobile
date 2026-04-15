@@ -10,9 +10,10 @@ interface SuccessModalProps {
     visible: boolean;
     message: string;
     isLoading?: boolean;
+    type?: 'success' | 'error';
 }
 
-const SuccessModal = ({ visible, message, isLoading = false }: SuccessModalProps) => {
+const SuccessModal = ({ visible, message, isLoading = false, type }: SuccessModalProps) => {
     return (
         <Modal
             transparent={true}
@@ -23,10 +24,10 @@ const SuccessModal = ({ visible, message, isLoading = false }: SuccessModalProps
                 <View style={styles.modalContent}>
                     <View style={styles.container}>
                         {isLoading ? (
-                            // Show spinner when loading
                             <ActivityIndicator size="small" color="#0A2167" style={{ marginRight: 10 }} />
+                        ) : type === 'error' ? (
+                            <FontAwesome name="times-circle" size={24} color="#D32F2F" />
                         ) : (
-                            // Show checkmark when success
                             <FontAwesome name="check-square" size={24} color="#4CAF50" />
                         )}
                         <Text style={styles.modalText}>
