@@ -17,7 +17,7 @@ const api = axios.create({
 api.interceptors.request.use(
     async (config) => {
         const token = await SecureStore.getItemAsync("access_token");
-        console.log("DEBUG: Token found for request:", token ? "YES (starts with " + token.substring(0, 5) + ")" : "NO");
+        // console.log("DEBUG: Token found for request:", token ? "YES (starts with " + token.substring(0, 5) + ")" : "NO");
 
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;

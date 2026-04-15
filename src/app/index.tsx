@@ -93,62 +93,56 @@ export default function LoginScreen() {
     };
 
     const handleLogin = async () => {
-        Alert.alert("Debug", "URL: " + process.env.EXPO_PUBLIC_API_URL);
+    Keyboard.dismiss();
+    setEmailError('');
+    setPasswordError('');
 
-        Keyboard.dismiss();
-        setEmailError('');
-        setPasswordError('');
+    if (!validateEmail(email)) {
+        setEmailError('Invalid email address. Please enter a valid email in the format: username@example.com.');
+        return;
+    }
 
-        if (!validateEmail(email)) {
-            setEmailError('Invalid email address. Please enter a valid email in the format: username@example.com.');
-            return;
+    if (!validatePassword(password)) {
+        setPasswordError('Your password is incorrect.');
+        return;
+    }
+
+    try {
+        setLoading(true);
+        const response = await loginUser(email, password);
+        if (response.token) {
+            await SecureStore.setItemAsync('access_token', response.token);
+            await SecureStore.setItemAsync('user_email', email.trim().toLowerCase());
+            await SecureStore.setItemAsync('user_name', response.user.name);
+            await updateActivityTimestamp();
+            router.replace('/(tabs)/dashboard');
         }
+    } catch (error: any) {
+        // --- DETAILED DEBUGGING LOGIC ---
+        if (error.response) {
+            const status = error.response.status;
+            const serverMsg = JSON.stringify(error.response.data);
 
-        if (!validatePassword(password)) {
-            setPasswordError('Your password is incorrect.');
-            return;
-        }
-
-        try {
-            setLoading(true);
-            const response = await loginUser(email, password);
-            if (response.token) {
-                await SecureStore.setItemAsync('access_token', response.token);
-                await SecureStore.setItemAsync('user_email', email.trim().toLowerCase());
-                await SecureStore.setItemAsync('user_name', response.user.name);
-                await updateActivityTimestamp();
-                router.replace('/(tabs)/dashboard');
-            }
-        } catch (error: any) {
-            // --- DETAILED DEBUGGING LOGIC ---
-            if (error.response) {
-                // The server responded with a status code (4xx, 5xx)
-                const status = error.response.status;
-                const serverMsg = JSON.stringify(error.response.data);
-
-                if (status === 404) {
-                    Alert.alert("Error 404", "Endpoint not found. Check if /api is correct in your URL.");
-                } else if (status === 401 || status === 403) {
-                    Alert.alert("Access Denied", "Invalid credentials or CORS block.");
-                    handleFailedAttempt();
-                } else {
-                    Alert.alert("Server Error", `Status: ${status}\n${serverMsg}`);
-                }
-            } else if (error.request) {
-                // The request was made but no response was received
-                // This is usually where the "Render Cold Start" or "Wrong URL" hits
-                Alert.alert(
-                    "Connection Failed",
-                    "No response from server. If using Render Free Tier, the server might be 'waking up'. Please wait 30 seconds and try again."
-                );
+            if (status === 404) {
+                Alert.alert("Error 404", "Endpoint not found. Check if /api is correct in your URL.");
+            } else if (status === 401 || status === 403) {
+                Alert.alert("Access Denied", "Invalid credentials or CORS block.");
+                handleFailedAttempt();
             } else {
-                // Something happened in setting up the request
-                Alert.alert("App Error", error.message);
+                Alert.alert("Server Error", `Status: ${status}\n${serverMsg}`);
             }
-        } finally {
-            setLoading(false);
+        } else if (error.request) {
+            Alert.alert(
+                "Connection Failed",
+                "No response from server. If using Render Free Tier, the server might be 'waking up'. Please wait 30 seconds and try again."
+            );
+        } else {
+            Alert.alert("App Error", error.message);
         }
-    };
+    } finally {
+        setLoading(false);
+    }
+};
 
     const handleFailedAttempt = () => {
         const newFailedAttempts = failedAttempts + 1;
