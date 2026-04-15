@@ -37,16 +37,31 @@ export default function LoginScreen() {
     const [isBiometricRegistered, setIsBiometricRegistered] = useState(false);
     const [isBiometricEnabled, setIsBiometricEnabled] = useState(false);
 
+    const [attemptsMap, setAttemptsMap] = useState<{ [key: string]: number }>({});
+    const [lockedEmail, setLockedEmail] = useState<string | null>(null);
 
     useEffect(() => {
-        checkSession();
         let internal: number;
+
         if (timer > 0) {
-            internal = setInterval(() => setTimer((prev) => prev - 1), 1000);
+            internal = setInterval(() => setTimer(prev => prev - 1), 1000);
         } else if (timer === 0 && isLocked) {
             setIsLocked(false);
+
+            if (lockedEmail) {
+                setAttemptsMap(prev => ({
+                    ...prev,
+                    [lockedEmail]: 0
+                }));
+            }
+
+            setLockedEmail(null);
             setFailedAttempts(0);
+
+            SecureStore.deleteItemAsync('lock_email');
+            SecureStore.deleteItemAsync('lock_until');
         }
+
         return () => clearInterval(internal);
     }, [timer, isLocked]);
 
@@ -57,13 +72,30 @@ export default function LoginScreen() {
         const registered = await SecureStore.getItemAsync('biometric_registered');
         const enabled = await SecureStore.getItemAsync('biometrics_enabled');
 
-        // Check 90 days inactivity logic
+        const lockEmail = await SecureStore.getItemAsync('lock_email');
+        const lockUntil = await SecureStore.getItemAsync('lock_until');
+
+        if (lockEmail && lockUntil) {
+            const remaining = Math.floor((parseInt(lockUntil) - Date.now()) / 1000);
+
+            if (remaining > 0) {
+                setIsLocked(true);
+                setLockedEmail(lockEmail);
+                setTimer(remaining);
+
+                setPasswordError(`Too many attempts. Try again after 60 seconds`);
+            } else {
+                // Lock expired → clean up
+                await SecureStore.deleteItemAsync('lock_email');
+                await SecureStore.deleteItemAsync('lock_until');
+            }
+        }
+
         if (lastActivity && storedEmail) {
             const now = Date.now();
             const elapsed = now - parseInt(lastActivity);
 
             if (elapsed > NINETY_DAYS_MS) {
-                // Wipe session if inactive for more than 90 days
                 await SecureStore.deleteItemAsync('user_email');
                 await SecureStore.deleteItemAsync('access_token');
                 await SecureStore.deleteItemAsync('last_activity');
@@ -74,6 +106,8 @@ export default function LoginScreen() {
                 setEmail(storedEmail);
             }
         }
+
+        // ✅ Biometrics state
         setIsBiometricRegistered(registered === 'true');
         setIsBiometricEnabled(enabled === 'true');
     };
@@ -93,63 +127,75 @@ export default function LoginScreen() {
     };
 
     const handleLogin = async () => {
-    Keyboard.dismiss();
-    setEmailError('');
-    setPasswordError('');
+        Keyboard.dismiss();
+        setEmailError('');
+        setPasswordError('');
 
-    if (!validateEmail(email)) {
-        setEmailError('Invalid email address. Please enter a valid email in the format: username@example.com.');
-        return;
-    }
-
-    if (!validatePassword(password)) {
-        setPasswordError('Your password is incorrect.');
-        return;
-    }
-
-    try {
-        setLoading(true);
-        const response = await loginUser(email, password);
-        if (response.token) {
-            await SecureStore.setItemAsync('access_token', response.token);
-            await SecureStore.setItemAsync('user_email', email.trim().toLowerCase());
-            await SecureStore.setItemAsync('user_name', response.user.name);
-            await updateActivityTimestamp();
-            router.replace('/(tabs)/dashboard');
+        if (!validateEmail(email)) {
+            setEmailError('Invalid email address. Please enter a valid email in the format: username@example.com.');
+            return;
         }
-    } catch (error: any) {
-        // --- DETAILED DEBUGGING LOGIC ---
-        if (error.response) {
-            const status = error.response.status;
-            const serverMsg = JSON.stringify(error.response.data);
 
-            if (status === 404) {
-                Alert.alert("Error 404", "Endpoint not found. Check if /api is correct in your URL.");
-            } else if (status === 401 || status === 403) {
-                Alert.alert("Access Denied", "Invalid credentials or CORS block.");
-                handleFailedAttempt();
-            } else {
-                Alert.alert("Server Error", `Status: ${status}\n${serverMsg}`);
+        if (!validatePassword(password)) {
+            setPasswordError('Your password is incorrect.');
+            return;
+        }
+
+        const normalizedEmail = email.trim().toLowerCase();
+
+        if (isLocked && lockedEmail === normalizedEmail) {
+            setPasswordError(`Too many attempts. Try again in ${timer}s.`);
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const response = await loginUser(email, password);
+
+            if (response.token) {
+                await SecureStore.setItemAsync('access_token', response.token);
+                await SecureStore.setItemAsync('user_email', email.trim().toLowerCase());
+                await SecureStore.setItemAsync('user_name', response.user.name);
+                await updateActivityTimestamp();
+                router.replace('/(tabs)/dashboard');
             }
-        } else if (error.request) {
-            Alert.alert(
-                "Connection Failed",
-                "No response from server. If using Render Free Tier, the server might be 'waking up'. Please wait 30 seconds and try again."
-            );
-        } else {
-            Alert.alert("App Error", error.message);
-        }
-    } finally {
-        setLoading(false);
-    }
-};
 
-    const handleFailedAttempt = () => {
-        const newFailedAttempts = failedAttempts + 1;
-        setFailedAttempts(newFailedAttempts);
-        if (newFailedAttempts >= 5) {
+        } catch (error: any) {
+            if (error.response) {
+                const status = error.response.status;
+
+                if (status === 401 || status === 403) {
+                    handleFailedAttempt?.();
+                }
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleFailedAttempt = async () => {
+        const normalizedEmail = email.trim().toLowerCase();
+
+        const currentAttempts = attemptsMap[normalizedEmail] || 0;
+        const newAttempts = currentAttempts + 1;
+
+        setAttemptsMap(prev => ({
+            ...prev,
+            [normalizedEmail]: newAttempts
+        }));
+
+        setFailedAttempts(newAttempts);
+
+        if (newAttempts >= 3) {
+            const lockUntil = Date.now() + 60000; // 60 seconds
+
             setIsLocked(true);
+            setLockedEmail(normalizedEmail);
             setTimer(60);
+
+            await SecureStore.setItemAsync('lock_email', normalizedEmail);
+            await SecureStore.setItemAsync('lock_until', lockUntil.toString());
+
             setPasswordError('Too many failed attempts. Please try again in 1 minute.');
         } else {
             setPasswordError('Your password is incorrect.');
@@ -241,6 +287,10 @@ export default function LoginScreen() {
             }
         }
     };
+
+    useEffect(() => {
+        checkSession();
+    }, []);
 
     return (
         <View style={styles.container}>
