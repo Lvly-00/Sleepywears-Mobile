@@ -10,7 +10,9 @@
     "android": {
       "package": "com.lyly0101.sleepywearsmobile",
       "permissions": [
-        "INTERNET"
+        "INTERNET",
+        "READ_MEDIA_IMAGES",
+        "READ_EXTERNAL_STORAGE"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon-logo.png",
@@ -21,7 +23,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "y",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "We need access to your photos to select product images."
       }
     },
     "web": {

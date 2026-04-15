@@ -21,35 +21,41 @@ export default function CustomersScreen() {
 
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sectionListRef = useRef<SectionList>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // 1. MEMOIZED FETCH FUNCTION
-  const fetchCustomers = useCallback(async (cursor: string | null = null, isRefreshing = false) => {
-    if (cursor) {
-      setIsMoreLoading(true);
-    } else if (!isRefreshing && customers.length === 0) {
-      setLoading(true);
-    }
+  useFocusEffect(
+    useCallback(() => {
+      fetchCustomers(null, true);
+    }, [refreshKey])
+  );
+
+  const fetchCustomers = useCallback(async (cursor: string | null = null, reset = false) => {
+    if (cursor) setIsMoreLoading(true);
+    else setLoading(true);
 
     try {
       const res = await api.get("/customers", {
         params: {
-          cursor: cursor,
+          cursor,
           search: search || undefined,
-          per_page: 20 // Increased per_page for better SectionList coverage
-        }
+          per_page: 20,
+        },
       });
 
       const newData = res.data.data || [];
-      const cursorUrl = res.data.next_page_url;
 
-      // Safe cursor extraction
+      const cursorUrl = res.data.next_page_url;
       let nextCursorStr = null;
+
       if (cursorUrl) {
-        const urlObj = new URL(cursorUrl, 'http://dummy.com');
-        nextCursorStr = urlObj.searchParams.get('cursor');
+        const urlObj = new URL(cursorUrl, "http://dummy.com");
+        nextCursorStr = urlObj.searchParams.get("cursor");
       }
 
-      setCustomers(prev => cursor ? [...prev, ...newData] : newData);
+      setCustomers(prev =>
+        cursor && !reset ? [...prev, ...newData] : newData
+      );
+
       setNextCursor(nextCursorStr);
     } catch (err) {
       console.error("Fetch error:", err);
@@ -58,7 +64,7 @@ export default function CustomersScreen() {
       setRefreshing(false);
       setIsMoreLoading(false);
     }
-  }, [search, customers.length]);
+  }, [search]);
 
   // 2. TRIGGER REFRESH ON FOCUS (Back from Edit/Create)
   useFocusEffect(
@@ -67,13 +73,21 @@ export default function CustomersScreen() {
     }, [fetchCustomers])
   );
 
+
+
   // 3. DEBOUNCED SEARCH
   useEffect(() => {
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
+
     searchTimeout.current = setTimeout(() => {
-      fetchCustomers(null, false);
+      setCustomers([]);
+      setNextCursor(null);
+      fetchCustomers(null, true);
     }, 500);
-    return () => { if (searchTimeout.current) clearTimeout(searchTimeout.current); };
+
+    return () => {
+      if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    };
   }, [search]);
 
   const onRefresh = useCallback(() => {

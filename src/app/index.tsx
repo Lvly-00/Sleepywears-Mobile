@@ -40,6 +40,7 @@ export default function LoginScreen() {
     const [attemptsMap, setAttemptsMap] = useState<{ [key: string]: number }>({});
     const [lockedEmail, setLockedEmail] = useState<string | null>(null);
 
+
     useEffect(() => {
         let internal: number;
 
@@ -66,6 +67,8 @@ export default function LoginScreen() {
     }, [timer, isLocked]);
 
     const checkSession = async () => {
+        const forceLogin = await SecureStore.getItemAsync('force_login');
+
         const lastActivity = await SecureStore.getItemAsync('last_activity');
         const storedEmail = await SecureStore.getItemAsync('user_email');
         const storedName = await SecureStore.getItemAsync('user_name');
@@ -74,6 +77,27 @@ export default function LoginScreen() {
 
         const lockEmail = await SecureStore.getItemAsync('lock_email');
         const lockUntil = await SecureStore.getItemAsync('lock_until');
+
+
+        if (forceLogin === 'true') {
+            await SecureStore.deleteItemAsync('user_email');
+            await SecureStore.deleteItemAsync('user_name');
+            await SecureStore.deleteItemAsync('access_token');
+            await SecureStore.deleteItemAsync('last_activity');
+            await SecureStore.deleteItemAsync('biometric_registered');
+            await SecureStore.deleteItemAsync('biometrics_enabled');
+
+            await SecureStore.deleteItemAsync('force_login');
+
+            setRememberedEmail(null);
+            setRememberedName(null);
+            setEmail('');
+            setIsBiometricRegistered(false);
+            setIsBiometricEnabled(false);
+
+            return;
+        }
+
 
         if (lockEmail && lockUntil) {
             const remaining = Math.floor((parseInt(lockUntil) - Date.now()) / 1000);
@@ -85,9 +109,12 @@ export default function LoginScreen() {
 
                 setPasswordError(`Too many attempts. Try again after 60 seconds`);
             } else {
-                // Lock expired → clean up
                 await SecureStore.deleteItemAsync('lock_email');
                 await SecureStore.deleteItemAsync('lock_until');
+
+                setIsLocked(false);
+                setLockedEmail(null);
+                setTimer(0);
             }
         }
 
@@ -99,15 +126,20 @@ export default function LoginScreen() {
                 await SecureStore.deleteItemAsync('user_email');
                 await SecureStore.deleteItemAsync('access_token');
                 await SecureStore.deleteItemAsync('last_activity');
+
                 setRememberedEmail(null);
+                setRememberedName(null);
+                setEmail('');
             } else {
                 setRememberedEmail(storedEmail);
                 setRememberedName(storedName);
                 setEmail(storedEmail);
             }
+        } else {
+            setRememberedEmail(null);
+            setRememberedName(null);
         }
 
-        // ✅ Biometrics state
         setIsBiometricRegistered(registered === 'true');
         setIsBiometricEnabled(enabled === 'true');
     };

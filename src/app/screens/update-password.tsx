@@ -1,11 +1,15 @@
 import api from '@/src/services/api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { SettingsInput } from '../../components/settings-input';
 import { UpdateButton } from '../../components/update-button';
 // import { useAuth } from '../../context/auth';
+import SuccessModal from '@/src/components/success-modal';
+import * as SecureStore from 'expo-secure-store';
+
+
+const ERROR_COLOR = '#9E2626';
 
 export default function UpdatePasswordScreen() {
     // const { setHasToken } = useAuth();
@@ -17,9 +21,16 @@ export default function UpdatePasswordScreen() {
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<any>({});
 
+    const [modal, setModal] = useState({
+        visible: false,
+        loading: false,
+        message: '',
+    });
+
     const handleUpdate = async () => {
         if (form.new_password !== form.new_password_confirmation) {
             setErrors({ new_password_confirmation: ["Passwords do not match"] });
+            setModal(prev => ({ ...prev, visible: false }));
             return;
         }
 
@@ -29,27 +40,31 @@ export default function UpdatePasswordScreen() {
         try {
             await api.put("/user/settings/password", form);
 
-            Alert.alert(
-                "Password Updated",
-                "Your password has been changed successfully. For security, please log in again.",
-                [
-                    {
-                        text: "OK",
-                        onPress: async () => {
-                            await AsyncStorage.removeItem('authToken');
-                            // setHasToken(false);
-                            router.replace('/');
 
-                        }
-                    }
-                ]
-            );
+            await SecureStore.setItemAsync("force_login", "true");
+
+
+            await SecureStore.deleteItemAsync("access_token");
+            await SecureStore.deleteItemAsync("user_email");
+            await SecureStore.deleteItemAsync("user_name");
+            await SecureStore.deleteItemAsync("last_activity");
+            await SecureStore.deleteItemAsync("biometric_registered");
+            await SecureStore.deleteItemAsync("biometrics_enabled");
+
+
+            setModal({
+                visible: true,
+                loading: false,
+                message: "Password updated successfully. Please log in again.",
+            });
+
+            setTimeout(() => {
+                router.replace("/"); // login screen
+            }, 2000);
 
         } catch (err: any) {
             if (err.response?.status === 422) {
                 setErrors(err.response.data.errors);
-            } else {
-                Alert.alert("Error", "Failed to update password. Please try again.");
             }
         } finally {
             setLoading(false);
@@ -68,6 +83,7 @@ export default function UpdatePasswordScreen() {
                 onChangeText={(val) => setForm({ ...form, current_password: val })}
                 isPassword
                 error={errors.current_password?.[0]}
+
             />
 
             <SettingsInput
@@ -87,6 +103,11 @@ export default function UpdatePasswordScreen() {
             />
 
             <UpdateButton onPress={handleUpdate} loading={loading} />
+            <SuccessModal
+                visible={modal.visible}
+                isLoading={modal.loading}
+                message={modal.message}
+            />
         </View>
     );
 }

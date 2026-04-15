@@ -183,7 +183,7 @@ export default function RootLayout() {
 
             }} />
 
-            
+
             <Stack.Screen name="screens/edit-customer" options={{
               presentation: 'fullScreenModal',
               title: 'Edit Customer',

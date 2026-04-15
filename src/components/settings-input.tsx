@@ -12,6 +12,7 @@ interface Props {
   disabled?: boolean;
 }
 
+
 export const SettingsInput = ({ label, value, onChangeText, placeholder, isPassword, error, disabled }: Props) => {
   const [secure, setSecure] = useState(true);
 
@@ -30,10 +31,10 @@ export const SettingsInput = ({ label, value, onChangeText, placeholder, isPassw
         />
         {isPassword && (
           <TouchableOpacity onPress={() => setSecure(!secure)}>
-            <Ionicons 
-              name={secure ? "eye-off-outline" : "eye-outline"} 
-              size={20} 
-              color="#232D80" 
+            <Ionicons
+              name={secure ? "eye-off-outline" : "eye-outline"}
+              size={20}
+              color="#232D80"
             />
           </TouchableOpacity>
         )}
@@ -65,6 +66,6 @@ const styles = StyleSheet.create({
     color: '#232c808f',
     paddingVertical: 5,
   },
-  errorBorder: { borderBottomColor: '#FF5252' },
-  errorText: { color: '#FF5252', fontSize: 12, marginTop: 5, fontFamily: 'LeagueSpartan' },
+  errorBorder: { borderBottomColor: '#9E2626' },
+  errorText: { color: '#9E2626', fontSize: 12, marginTop: 5, fontFamily: 'LeagueSpartan' },
 });

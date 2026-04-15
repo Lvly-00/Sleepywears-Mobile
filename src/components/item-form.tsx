@@ -2,6 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
+    ActivityIndicator,
     Alert,
     Dimensions,
     Image,
@@ -27,7 +28,6 @@ interface ItemFormProps {
 }
 
 export default function ItemForm({ mode, initialData, collectionId }: ItemFormProps) {
-
     const [isPageLoading, setIsPageLoading] = useState(mode === 'edit' && !initialData);
 
     const fixImageUrl = (url?: string | null): string | null => {
@@ -60,6 +60,9 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
 
     const [image, setImage] = useState<any>(null);
     const [existingImage, setExistingImage] = useState<string | null>(null);
+    const [imageChanged, setImageChanged] = useState(false);
+    const [uploadedImage, setUploadedImage] = useState<any>(null);
+    const [uploadingImage, setUploadingImage] = useState(false);
 
     const [modalState, setModalState] = useState({ visible: false, loading: false, message: "" });
     const [errors, setErrors] = useState({ name: "", price: "", image: "" });
@@ -74,7 +77,7 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
             minimumFractionDigits: 0,
         }).format(parseInt(digits));
     }
-    
+
     useEffect(() => {
         if (initialData) {
             setIsPageLoading(false);
@@ -86,15 +89,44 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
                 console.log("[DEBUG] Final URL used for display:", fixed);
                 setExistingImage(fixed);
             }
+            setImageChanged(false);
         }
     }, [initialData]);
 
+
+    const uploadImageImmediately = async (asset: any) => {
+        try {
+            setUploadingImage(true);
+
+            const formData = new FormData();
+
+            const fileName = asset.uri.split('/').pop() || 'upload.jpg';
+            const match = /\.(\w+)$/.exec(fileName);
+            const type = match ? `image/${match[1]}` : `image/jpeg`;
+
+            formData.append("image", {
+                uri: Platform.OS === 'ios' ? asset.uri.replace('file://', '') : asset.uri,
+                name: fileName,
+                type,
+            } as any);
+
+            const res = await api.post("/items/temp-upload", formData, {
+                headers: { "Content-Type": "multipart/form-data" }
+            });
+
+            setUploadedImage(res.data);
+
+            console.log("Image uploaded instantly:", res.data);
+        } catch (err) {
+            console.log("Upload failed", err);
+        } finally {
+            setUploadingImage(false);
+        }
+    };
+
     const pickImage = async () => {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!permission.granted) {
-            Alert.alert("Permission Required", "Allow access to photos to continue.");
-            return;
-        }
+        if (!permission.granted) return;
 
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images'],
@@ -103,14 +135,18 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
             quality: 0.7,
         });
 
-        if (!result.canceled) {
-            setImage(result.assets[0]);
-            setExistingImage(null);
-            setErrors(prev => ({ ...prev, image: "" }));
-        }
+        if (result.canceled) return;
+
+        const asset = result.assets[0];
+
+        setImage(asset);
+        setExistingImage(null);
+
+        await uploadImageImmediately(asset);
     };
 
     const handleSubmit = async () => {
+
         const newErrors = { name: "", price: "", image: "" };
         let isValid = true;
 
@@ -124,7 +160,7 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
             isValid = false;
         }
 
-        if (!image && !existingImage) {
+        if (!image && !existingImage && !uploadedImage) {
             newErrors.image = "An image is required.";
             isValid = false;
         }
@@ -141,54 +177,47 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
         });
 
         const formData = new FormData();
+
         formData.append("name", name);
         formData.append("price", price.replace(/[^0-9.]/g, ''));
         formData.append("status", status);
         formData.append("collection_id", collectionId);
 
-        if (image) {
-            const fileName = image.uri.split('/').pop() || 'upload.jpg';
-            const match = /\.(\w+)$/.exec(fileName);
-            const type = match ? `image/${match[1]}` : `image/jpeg`;
 
-            formData.append("image", {
-                uri: Platform.OS === 'ios' ? image.uri.replace('file://', '') : image.uri,
-                name: fileName,
-                type: type,
-            } as any);
+        if (uploadedImage) {
+            formData.append("image_id", uploadedImage.public_id);
+            formData.append("image_url", uploadedImage.secure_url);
         }
 
         try {
             if (mode === 'create') {
-                await api.post("/items", formData, { headers: { "Content-Type": "multipart/form-data" } });
+                await api.post("/items");
             } else {
-                formData.append('_method', 'PUT');
-                await api.post(`/items/${initialData.id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+                await api.post(`/items/${initialData.id}`, {
+                    _method: "PUT",
+                });
             }
 
             setModalState({
                 visible: true,
                 loading: false,
-                message: mode === 'create' ? 'Item added successfully!' : 'Item updated successfully!'
+                message: mode === 'create'
+                    ? "Item added successfully!"
+                    : "Item updated successfully!"
             });
+
+            setImage(null);
+            setExistingImage(null);
+            setUploadedImage(null);
+
             setTimeout(() => {
                 setModalState({ visible: false, loading: false, message: "" });
                 router.back();
             }, 1500);
-        } catch (error: any) {
-            // 3. Error Case: Close modal so user can see what's wrong
-            setModalState({ visible: false, loading: false, message: "" });
 
-            if (error.response?.status === 422) {
-                const validationErrors = error.response.data.errors || {};
-                setErrors({
-                    name: validationErrors.name ? validationErrors.name[0] : '',
-                    price: validationErrors.price ? validationErrors.price[0] : '',
-                    image: validationErrors.image ? validationErrors.image[0] : '',
-                });
-            } else {
-                Alert.alert("Error", "Something went wrong. Please try again.");
-            }
+        } catch (error) {
+            setModalState({ visible: false, loading: false, message: "" });
+            Alert.alert("Error", "Something went wrong");
         }
     };
 
@@ -212,23 +241,42 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
                             borderColor: errors.image
                                 ? ERROR_COLOR
                                 : (image || existingImage ? '#BCBCBC' : '#818181'),
-                            borderStyle: errors.image ? 'dashed' : 'dashed'
+                            borderStyle: 'dashed',
                         }
-                    ]} onPress={pickImage}
-                    disabled={modalState.loading}
+                    ]}
+                    onPress={pickImage}
+                    disabled={modalState.loading || uploadingImage}
                 >
+                    {/* ================= IMAGE PREVIEW ================= */}
                     {image ? (
                         <Image source={{ uri: image.uri }} style={styles.previewImage} />
                     ) : existingImage ? (
                         <Image
                             source={{ uri: existingImage }}
                             style={styles.previewImage}
-                            onError={(e) => console.log("[DEBUG] Image Load Error:", e.nativeEvent.error)}
+                            onError={(e) =>
+                                console.log("[DEBUG] Image Load Error:", e.nativeEvent.error)
+                            }
                         />
                     ) : (
                         <View style={styles.placeholderContainer}>
-                            <Text style={[styles.placeholderText, !!errors.image && { color: ERROR_COLOR }]}>
+                            <Text
+                                style={[
+                                    styles.placeholderText,
+                                    !!errors.image && { color: ERROR_COLOR }
+                                ]}
+                            >
                                 Add Photo
+                            </Text>
+                        </View>
+                    )}
+
+                    {/* ================= UPLOAD OVERLAY ================= */}
+                    {uploadingImage && (
+                        <View style={styles.uploadOverlay}>
+                            <ActivityIndicator size="large" color="#FFFFFF" />
+                            <Text style={{ color: '#fff', marginTop: 8, fontWeight: '600' }}>
+                                Uploading image...
                             </Text>
                         </View>
                     )}
@@ -402,5 +450,12 @@ const styles = StyleSheet.create({
         paddingHorizontal: 0,
         lineHeight: 14,
         color: '#9E2626',
+    },
+    uploadOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.55)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 8,
     },
 });
