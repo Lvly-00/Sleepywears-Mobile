@@ -42,14 +42,17 @@ export default function DashboardScreen() {
   const [isFocus, setIsFocus] = useState(false);
   const [chartDataSets, setChartDataSets] = useState<any[]>([]);
   const [chartMaxValue, setChartMaxValue] = useState(15000);
+  const [lastFetched, setLastFetched] = useState<number | null>(null);
 
   const fetchData = useCallback(async (isSilent: boolean) => {
     try {
       if (!isSilent && !data) setLoading(true);
+
       const res = await api.get('/dashboard');
       const d = res.data;
-      setData(d);
 
+      setData(d);
+      setLastFetched(Date.now());
       // Process Chart Data
       if (d.dailySales && d.collectionSales) {
         const now = new Date();
@@ -74,8 +77,9 @@ export default function DashboardScreen() {
       console.error(err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, []);
+  }, [data]);
 
   useFocusEffect(
     useCallback(() => {
@@ -123,6 +127,10 @@ export default function DashboardScreen() {
       <ScrollView contentContainerStyle={styles.container}>
 
         {/* 1. TOP PERFORMANCE PILL */}
+        <View style={styles.pillHeader}>
+
+          <Text style={styles.pillTitle}>Today's Progress</Text>
+        </View>
         <Surface style={styles.piContainer} elevation={1}>
           <PIItem icon="cart-outline" value={data.pi.orders} label="Orders" />
           <View style={styles.divider} />
@@ -273,6 +281,18 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  pillHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  pillTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginLeft: 10,
+    color: '#000',
   },
   piItem: {
     flex: 1,
