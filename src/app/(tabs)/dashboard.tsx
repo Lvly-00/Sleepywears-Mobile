@@ -1,21 +1,32 @@
+import { DashboardSkeleton } from '@/src/components/dashboard-skeleton-loader';
 import api from '@/src/services/api';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
   Dimensions,
-  FlatList,
   Image,
   ScrollView,
   StyleSheet,
-  View,
+  View
 } from 'react-native';
+import { Dropdown } from 'react-native-element-dropdown';
 import { LineChart } from 'react-native-gifted-charts';
-import { Divider, IconButton, Modal, Portal, Surface, Text } from 'react-native-paper';
+import { Surface, Text } from 'react-native-paper';
 
-const { width } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// 1. Asset Mapping
+const COLORS = {
+  primary: '#05004E',
+  background: '#F8F9FA',
+  summaryBg: '#f1f1f1',
+  riskBg: '#F2E8E5',
+  cardBg: '#FFFFFF',
+  accentBrown: '#944E1B',
+  valueBrown: '#5D4324',
+  chartLines: ["#54361C", "#944E1B", "#F0BB78", "#AB8262", "#232D80"]
+};
+
 const ICONS = {
   netIncome: require('@/assets/images/net-income.png'),
   grossIncome: require('@/assets/images/gross-income.png'),
@@ -23,107 +34,44 @@ const ICONS = {
   activeCustomers: require('@/assets/images/active-customers.png'),
 };
 
-const COLORS = {
-  primary: '#0A0B32',      // Navy Blue for Main Title
-  background: '#F8F9FA',   // Screen Background
-  summaryBg: '#F1F1F1',    // Light Grey Container for Summary
-  cardBg: '#FFFFFF',       // White Card Background
-  accentBrown: '#944E1B',  // Icon Tint
-  valueBrown: '#5D4324',   // Dark Brown for Numbers
-  suffixGrey: '#7A6F58',   // Brownish-Grey for Pieces/Total
-  textBlack: '#000000',
-  green: '#4CAF50',
-  chartLines: ["#944E1B", "#54361C", "#F0BB78", "#AB8262", "#232D80"]
-};
-
-interface SummaryData {
-  grossIncome: number;
-  netIncome: number;
-  totalItemsSold: number;
-  totalCustomers: number;
-  avgOrderValue: number;
-  goalReached: number;
-  stockHealth: string;
-}
-
 export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
-  const [lastUpdate, setLastUpdate] = useState(Date.now());
-  const [summary, setSummary] = useState<SummaryData>({
-    grossIncome: 0,
-    netIncome: 0,
-    totalItemsSold: 0,
-    totalCustomers: 0,
-    avgOrderValue: 0,
-    goalReached: 0,
-    stockHealth: 'Loading...',
-  });
-
+  const [data, setData] = useState<any>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedKriId, setSelectedKriId] = useState('all');
+  const [isFocus, setIsFocus] = useState(false);
   const [chartDataSets, setChartDataSets] = useState<any[]>([]);
-  const [chartMaxValue, setChartMaxValue] = useState(1000);
-  const [legendItems, setLegendItems] = useState<{ name: string; color: string }[]>([]);
-  const [allOrders, setAllOrders] = useState<any[]>([]);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [selectedOrders, setSelectedOrders] = useState<any[]>([]);
-  const [selectedDay, setSelectedDay] = useState<number>(0);
+  const [chartMaxValue, setChartMaxValue] = useState(15000);
 
-  const currentMonthName = new Date().toLocaleString('default', { month: 'long' });
-  const formatCurrency = (num: number) => `₱${Math.round(num || 0).toLocaleString()}`;
-
-  const fetchDashboardData = useCallback(async (isBackground = false) => {
+  const fetchData = useCallback(async (isSilent: boolean) => {
     try {
-      if (!isBackground) setLoading(true);
+      if (!isSilent && !data) setLoading(true);
       const res = await api.get('/dashboard');
-      const data = res.data;
+      const d = res.data;
+      setData(d);
 
-      setSummary({
-        grossIncome: data.grossIncome,
-        netIncome: data.netIncome,
-        totalItemsSold: data.totalItemsSold,
-        totalCustomers: data.totalCustomers,
-        avgOrderValue: data.avgOrderValue,
-        goalReached: data.goalReached,
-        stockHealth: data.stockHealth,
-      });
-
-      setAllOrders(data.detailedOrders || []);
-
-      if (data.dailySales && data.collectionSales) {
+      // Process Chart Data
+      if (d.dailySales && d.collectionSales) {
+        const now = new Date();
+        const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
         let globalMax = 0;
-        const legend: { name: string; color: string }[] = [];
 
-        const datasets = data.collectionSales.map((item: any, index: number) => {
-          const collectionName = item.collection_name || item;
+        const datasets = d.collectionSales.map((colName: string, index: number) => {
           const color = COLORS.chartLines[index % COLORS.chartLines.length];
-          legend.push({ name: collectionName, color: color });
-
-          const lineData = data.dailySales.map((d: any) => {
-            const val = Number(d[collectionName]) || 0;
+          const lineData = [];
+          for (let i = 1; i <= daysInMonth; i++) {
+            const dayEntry = d.dailySales.find((entry: any) => Number(entry.date) === i);
+            const val = dayEntry ? Number(dayEntry[colName]) || 0 : 0;
             if (val > globalMax) globalMax = val;
-            return {
-              value: val,
-              label: d.date % 5 === 0 ? `${d.date}` : '',
-              dataDay: d.date,
-            };
-          });
-
-          return {
-            data: lineData,
-            color: color,
-            thickness: 3,
-            hideDataPoints: false,
-            dataPointsRadius: 4,
-            curved: true,
-          };
+            lineData.push({ value: val, label: i.toString(), dataPointText: val > 0 ? `${Math.round(val)}` : '' });
+          }
+          return { data: lineData, color, thickness: 3, curved: true, hideDataPoints: false, dataPointsColor: color, dataPointsRadius: 4, textColor: color };
         });
-
-        setChartMaxValue(globalMax > 0 ? globalMax * 1.2 : 1000);
-        setLegendItems(legend);
+        setChartMaxValue(globalMax > 0 ? globalMax * 1.3 : 15000);
         setChartDataSets(datasets);
-        setLastUpdate(Date.now());
       }
     } catch (err) {
-      console.error('Dashboard Fetch Error:', err);
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -131,192 +79,182 @@ export default function DashboardScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchDashboardData(true);
-    }, [fetchDashboardData])
+      if (data) {
+        fetchData(true);
+      } else {
+        fetchData(false);
+      }
+    }, [fetchData])
   );
 
-  useEffect(() => {
-    const interval = setInterval(() => fetchDashboardData(true), 30000);
-    return () => clearInterval(interval);
-  }, [fetchDashboardData]);
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchData(true);
+  }, [fetchData]);
 
-  const handleTap = (day: number) => {
-    const orders = allOrders.filter((o) => Number(o.day) === Number(day));
-    setSelectedDay(day);
-    setSelectedOrders(orders);
-    setModalVisible(true);
-  };
+
+  if (loading || !data) {
+    return <DashboardSkeleton />;
+  }
+  if (!data) return null;
+
+  const collectionsWithRisk = data.collections.filter((col: any) => {
+    const kri = data.kris[col.id];
+    return kri && (kri.receivables > 0 || kri.unpaid_orders > 0 || kri.dead_stock > 0);
+  });
+
+  const globalRisk = data.kris['all'];
+  const hasGlobalRisk = globalRisk && (globalRisk.receivables > 0 || globalRisk.unpaid_orders > 0 || globalRisk.dead_stock > 0);
+
+  const dropdownData = [];
+  if (hasGlobalRisk) {
+    dropdownData.push({ id: 'all', name: 'All Collections' });
+  }
+  dropdownData.push(...collectionsWithRisk);
+
+  const currentKri = data.kris[selectedKriId];
+  // Ensure we show the card if the current selection has risk
+  const hasRisk = currentKri && (currentKri.receivables > 0 || currentKri.unpaid_orders > 0 || currentKri.dead_stock > 0);
+
+  const currentMonth = new Date().toLocaleString('default', { month: 'long' });
 
   return (
-    <View style={{ flex: 1 }}>
-      <ScrollView
-        style={{ backgroundColor: COLORS.background }}
-        contentContainerStyle={styles.container}
-      >
-        {/* SUMMARY SECTION CONTAINER */}
-        <View style={styles.summaryContainer}>
-          <Text style={styles.mainTitle}>Summary</Text>
+    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+      <ScrollView contentContainerStyle={styles.container}>
 
-          {loading ? (
-            <ActivityIndicator animating={true} color={COLORS.primary} style={{ marginVertical: 60 }} />
-          ) : (
-            <View style={styles.statsGrid}>
-              <StatCard
-                title="Net Income"
-                value={formatCurrency(summary.netIncome)}
-                icon={ICONS.netIncome}
-              />
-              <StatCard
-                title="Gross Income"
-                value={formatCurrency(summary.grossIncome)}
-                icon={ICONS.grossIncome}
-              />
-              <StatCard
-                title="Total Items Sold"
-                value={summary.totalItemsSold.toLocaleString()}
-                suffix="pieces"
-                icon={ICONS.totalItemsSold}
-              />
-              <StatCard
-                title="Active Customers"
-                value={summary.totalCustomers.toLocaleString()}
-                suffix="total"
-                icon={ICONS.activeCustomers}
+        {/* 1. TOP PERFORMANCE PILL */}
+        <Surface style={styles.piContainer} elevation={1}>
+          <PIItem icon="cart-outline" value={data.pi.orders} label="Orders" />
+          <View style={styles.divider} />
+          <PIItem icon="account-plus-outline" value={data.pi.leads} label="New Customers" />
+          <View style={styles.divider} />
+          <PIItem icon="file-document-outline" value={data.pi.invoices} label="Invoices" />
+        </Surface>
+
+        {/* 2. CRITICAL RISKS SECTION */}
+        {hasRisk && (
+          <View style={styles.riskCard}>
+            <View style={styles.riskHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <MaterialCommunityIcons name="shield-alert-outline" size={24} color="#7E3A3A" />
+                <Text style={styles.riskTitle}>Critical Risks</Text>
+              </View>
+
+              <Dropdown
+                style={[styles.dropdown, isFocus && { borderColor: '#000' }]}
+                selectedTextStyle={styles.dropdownText}
+                data={dropdownData}
+                labelField="name"
+                valueField="id"
+                value={selectedKriId}
+                onFocus={() => setIsFocus(true)}
+                onBlur={() => setIsFocus(false)}
+                onChange={item => {
+                  setSelectedKriId(item.id);
+                  setIsFocus(false);
+                }}
+                renderRightIcon={() => (
+                  <MaterialCommunityIcons name="chevron-down" size={22} color="#000" />
+                )}
               />
             </View>
-          )}
+
+            <View style={styles.riskGrid}>
+              <RiskStat
+                icon="cash-multiple"
+                label="Uncollected Sales"
+                value={`₱${Math.round(currentKri.receivables).toLocaleString()}`}
+              />
+              <RiskStat
+                icon="clock-outline"
+                label="Unpaid Orders"
+                value={currentKri.unpaid_orders}
+              />
+              <RiskStat
+                icon="package-variant-closed"
+                label="Unsold Items"
+                value={currentKri.dead_stock}
+              />
+            </View>
+          </View>
+        )}
+
+
+        {/* 3. SUMMARY SECTION */}
+        <View style={styles.summarySection}>
+          <Text style={styles.sectionHeading}>Summary</Text>
+          <View style={styles.statsGrid}>
+            <StatCard title="Net Income" value={`₱${Math.round(data.netIncome).toLocaleString()}`} icon={ICONS.netIncome} />
+            <StatCard title="Gross Income" value={`₱${Math.round(data.grossIncome).toLocaleString()}`} icon={ICONS.grossIncome} />
+            <StatCard title="Total Items Sold" value={data.totalItemsSold} suffix="pieces" icon={ICONS.totalItemsSold} />
+            <StatCard title="Active Customers" value={data.totalCustomers} suffix="total" icon={ICONS.activeCustomers} />
+          </View>
         </View>
 
-        {/* METRICS ROW */}
-        {!loading && (
-          <>
-            <View style={styles.metricsRow}>
-              <View style={styles.metricItem}>
-                <Text style={styles.metricLabel}>Monthly Goal</Text>
-                <Text style={styles.metricValue}>{summary.goalReached}% Reached</Text>
-              </View>
-              <View style={[styles.metricItem, styles.metricHighlight]}>
-                <Text style={styles.metricLabel}>Avg. Order Value</Text>
-                <Text style={styles.metricValue}>{formatCurrency(summary.avgOrderValue)}</Text>
-              </View>
-              <View style={styles.metricItem}>
-                <Text style={styles.metricLabel}>Stock Health</Text>
-                <Text
-                  style={[
-                    styles.metricValue,
-                    { color: summary.stockHealth === 'All Good' ? COLORS.green : '#D32F2F' },
-                  ]}
-                >
-                  {summary.stockHealth}
-                </Text>
-              </View>
+        {/* 4. CHART SECTION */}
+        <Surface style={styles.chartSurface} elevation={1}>
+          <Text style={styles.chartTitle}>{currentMonth} Collection Sales</Text>
+          <View style={{ flexDirection: 'row' }}>
+            <View style={styles.yAxisBox}><Text style={styles.yAxisText}>Profit</Text></View>
+            <View style={{ flex: 1 }}>
+              <LineChart
+                dataSet={chartDataSets}
+                height={220}
+                width={SCREEN_WIDTH - 120}
+                spacing={60}
+                initialSpacing={20}
+                maxValue={chartMaxValue}
+                noOfSections={4}
+                verticalLinesColor="#F5F5F5"
+                yAxisTextStyle={styles.axisText}
+                xAxisLabelTextStyle={styles.axisText}
+                formatYLabel={(l) => Number(l) >= 1000 ? `${(Number(l) / 1000)}k` : l}
+                textFontSize={9}
+                textShiftY={-10}
+                focusEnabled={false}
+              />
             </View>
-
-            {/* CHART SECTION */}
-            <View style={styles.mainChartContainer}>
-
-              <Surface style={styles.chartContainer} elevation={0}>
-                <Text style={styles.chartTitle}>{currentMonthName} Collection Sales</Text>
-                <View style={styles.chartWrapper}>
-                  {chartDataSets.length > 0 ? (
-                    <LineChart
-                      key={`chart-${lastUpdate}`}
-                      dataSet={chartDataSets}
-                      height={200}
-                      width={width - 110}
-                      maxValue={chartMaxValue}
-                      noOfSections={4}
-                      initialSpacing={15}
-                      spacing={12}
-                      yAxisThickness={0}
-                      xAxisThickness={1}
-                      xAxisColor="#E0E0E0"
-                      yAxisTextStyle={styles.axisText}
-                      xAxisLabelTextStyle={styles.axisText}
-                      isAnimated
-                      focusEnabled
-                      pointerConfig={{
-                        pointerStripColor: 'rgba(0,0,0,0.1)',
-                        pointerStripWidth: 2,
-                        pointerColor: COLORS.primary,
-                        radius: 4,
-                        onPress: (items: any) => {
-                          if (items[0]?.dataDay) handleTap(items[0].dataDay);
-                        },
-                      }}
-                      formatYLabel={(label) => {
-                        const val = Number(label);
-                        if (val >= 1000) return `₱${(val / 1000).toFixed(1)}k`;
-                        return `₱${val}`;
-                      }}
-                    />
-                  ) : (
-                    <View style={styles.noDataBox}>
-                      <Text style={styles.noDataText}>No sales data found for this month</Text>
-                    </View>
-                  )}
-                </View>
-
-                <View style={styles.legendContainer}>
-                  {legendItems.map((item, idx) => (
-                    <View key={idx} style={styles.legendItem}>
-                      <View style={[styles.legendDot, { backgroundColor: item.color }]} />
-                      <Text style={styles.legendText}>{item.name}</Text>
-                    </View>
-                  ))}
-                </View>
-              </Surface>
-            </View>
-          </>
-        )}
+          </View>
+        </Surface>
       </ScrollView>
-
-
-      {/* MODAL SECTION */}
-      <Portal>
-        <Modal
-          visible={modalVisible}
-          onDismiss={() => setModalVisible(false)}
-          contentContainerStyle={styles.modal}
-        >
-          <Text style={styles.modalTitle}>Orders: Day {selectedDay}</Text>
-          <Divider style={{ marginVertical: 10 }} />
-          <FlatList
-            data={selectedOrders}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => (
-              <View style={styles.orderRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.orderMainText}>
-                    {item.order_number} • {item.customer}
-                  </Text>
-                  <Text style={styles.orderSubText}>{item.collections.join(', ')}</Text>
-                </View>
-                <Text style={styles.orderAmountText}>{formatCurrency(item.total)}</Text>
-              </View>
-            )}
-            ListEmptyComponent={<Text style={styles.noOrdersText}>No orders on this day.</Text>}
-          />
-          <IconButton icon="close" style={{ alignSelf: 'center' }} onPress={() => setModalVisible(false)} />
-        </Modal>
-      </Portal>
     </View>
   );
 }
 
-// 2. StatCard Component following the Reference Image Hierarchy
+const PIItem = ({ icon, value, label }: any) => (
+  <View style={styles.piItem}>
+    <MaterialCommunityIcons name={icon} size={24} color="#0A0B32" />
+    <View style={{ marginLeft: 8 }}>
+      <Text style={{ fontWeight: 'bold', fontSize: 14, color: '#000000' }}>{value}</Text>
+      <Text style={{ fontSize: 14, color: '#000000' }}>{label}</Text>
+    </View>
+  </View>
+);
+
+const RiskStat = ({ icon, label, value }: any) => (
+  <View style={styles.riskStatItem}>
+    <View style={styles.riskTopRow}>
+      <View style={styles.riskIconCircle}>
+        {/* Main Icon */}
+        <MaterialCommunityIcons name={icon} size={22} color="#7E3A3A" />
+
+        {/* Circle Cross Badge */}
+        <View style={styles.badgeContainer}>
+          <MaterialCommunityIcons name="close" size={10} color="#7E3A3A" strokeWidth={2} />
+        </View>
+      </View>
+      <Text style={styles.riskValue}>{value}</Text>
+    </View>
+    <Text style={styles.riskLabel}>{label}</Text>
+  </View>
+);
+
 const StatCard = ({ title, value, suffix, icon }: any) => (
   <View style={styles.statCard}>
     <Text style={styles.statTitle}>{title}</Text>
-
-    <View style={styles.iconContainer}>
-      <Image source={icon} style={styles.imageIcon} resizeMode="contain" />
-    </View>
-
-    <View style={styles.valueContainer}>
-      <Text style={styles.statValue}>{value}</Text>
-      {suffix && <Text style={styles.statSuffix}>{suffix}</Text>}
-    </View>
+    <Image source={icon} style={styles.statIcon} resizeMode="contain" />
+    <Text style={styles.statValue}>{value}</Text>
+    {suffix && <Text style={styles.statSuffix}>{suffix}</Text>}
   </View>
 );
 
@@ -324,194 +262,200 @@ const styles = StyleSheet.create({
   container: {
     padding: 16,
   },
-  // Gray container for the summary grid
-  summaryContainer: {
-    backgroundColor: COLORS.summaryBg,
-    borderRadius: 32,
-    paddingTop: 20,
-    paddingLeft: 20,
-    paddingRight: 20,
-    marginBottom: 10,
+
+  // ================= PI PILLS =================
+  piContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    paddingVertical: 15,
+    paddingHorizontal: 5,
+    marginBottom: 15,
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  mainTitle: {
-    fontSize: 28,
+  piItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  divider: {
+    width: 1,
+    height: '70%',
+    backgroundColor: '#EEE',
+  },
+
+  // ================= RISK CARD =================
+  riskCard: {
+    backgroundColor: COLORS.riskBg,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E0B4B4',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  riskHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  riskTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.primary,
-    marginBottom: 10,
+    marginLeft: 10,
+    color: '#000',
+  },
+  dropdown: {
+    height: 30,
+    width: 160,
+    backgroundColor: 'transparent',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+
+  dropdownText: {
+    fontSize: 14,
+    fontWeight: '500'
+  },
+
+  riskGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+  },
+  riskStatItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  riskTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  riskIconCircle: {
+    backgroundColor: '#FFF',
+    padding: 8,
+    borderRadius: 10,
+    marginRight: 10,
+    marginLeft: -15,
+    position: 'relative',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+  },
+
+
+  badgeContainer: {
+    position: 'absolute',
+    bottom: 3,
+    right: 4,
+    backgroundColor: '#FFF',
+    width: 14,
+    height: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  riskValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  riskLabel: {
+    fontSize: 14,
+    color: '#000',
+    textAlign: 'left',
+    fontWeight: '500'
+  },
+
+  // ================= SUMMARY =================
+  summarySection: {
+    backgroundColor: COLORS.summaryBg,
+    borderRadius: 20,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  sectionHeading: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 15,
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    marginBottom: -15
   },
   statCard: {
-    backgroundColor: COLORS.cardBg,
+    backgroundColor: '#FFF',
+    padding: 10,
     width: '48%',
-    aspectRatio: 1,
-    padding: 15,
-    borderRadius: 32,
+    aspectRatio: 1.1,
+    borderRadius: 24,
     marginBottom: 15,
     alignItems: 'center',
-    justifyContent: 'space-evenly',
+    justifyContent: 'center',
     elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
   },
   statTitle: {
-    fontSize: 18,
-    color: '#000000',
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
+    color: "#000",
   },
-  iconContainer: {
-    height: 45,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  imageIcon: {
+  statIcon: {
     width: 42,
     height: 42,
+    marginBottom: 8,
     tintColor: COLORS.accentBrown,
   },
-  valueContainer: {
-    alignItems: 'center',
-  },
   statValue: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
     color: COLORS.valueBrown,
   },
   statSuffix: {
-    fontSize: 18,
-    color: COLORS.suffixGrey,
-    marginTop: -4,
+    fontSize: 20,
+    color: '#7A6F58',
   },
-  // Metrics Row Styles
-  metricsRow: {
-    flexDirection: 'row',
-    backgroundColor: '#F1F1F1',
-    borderRadius: 20,
-    padding: 5,
-    marginVertical: 15,
-  },
-  metricItem: {
-    flex: 1,
-    paddingVertical: 15,
-    alignItems: 'center',
-  },
-  metricHighlight: {
-    backgroundColor: '#E8E8E8',
-    borderRadius: 15,
-  },
-  metricLabel: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#000000',
-    marginBottom: 4,
-  },
-  metricValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  mainChartContainer: {
-    backgroundColor: COLORS.summaryBg,
-    borderRadius: 32,
-    padding: 20,
-    marginBottom: 10,
-  },
-  // Chart Styles
-  chartContainer: {
-    backgroundColor: 'COLORS.cardBg',
-    borderRadius: 24,
-    padding: 20,
-    overflow: 'hidden',
+
+  // ================= CHART =================
+  chartSurface: {
+    backgroundColor: '#FFF',
+    borderRadius: 28,
+    paddingVertical: 20,
+    paddingHorizontal: 10,
+    marginBottom: 20,
+    overflow: "hidden",
   },
   chartTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.primary,
     textAlign: 'center',
-    marginBottom: 25,
+    marginBottom: 20,
+    color: "#05004E"
   },
-  chartWrapper: {
-    marginLeft: -15,
-    minHeight: 220,
+  yAxisBox: {
+    width: 20,
     justifyContent: 'center',
+  },
+  yAxisText: {
+    transform: [{ rotate: '-90deg' }],
+    color: '#707070',
+    fontSize: 10,
+    width: 30,
+    textAlign: 'center',
   },
   axisText: {
-    fontSize: 10,
-    color: '#999',
-  },
-  legendContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    marginTop: 15,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 10,
-    marginBottom: 5,
-  },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 5,
-  },
-  legendText: {
-    fontSize: 11,
-    color: '#666',
-  },
-  noDataBox: {
-    height: 200,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  noDataText: {
-    color: '#999',
-    fontSize: 14,
-    fontStyle: 'italic',
-  },
-  // Modal Styles
-  modal: {
-    backgroundColor: 'white',
-    margin: 20,
-    padding: 20,
-    borderRadius: 25,
-    maxHeight: '80%',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-  },
-  orderRow: {
-    flexDirection: 'row',
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-    alignItems: 'center',
-  },
-  orderMainText: {
-    fontWeight: 'bold',
-    fontSize: 15,
-  },
-  orderSubText: {
-    fontSize: 12,
-    color: COLORS.accentBrown,
-  },
-  orderAmountText: {
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  noOrdersText: {
-    textAlign: 'center',
-    padding: 20,
-    color: '#999',
+    fontSize: 9,
+    color: '#707070',
   },
 });

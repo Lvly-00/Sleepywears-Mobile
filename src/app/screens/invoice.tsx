@@ -4,6 +4,8 @@ import * as MediaLibrary from 'expo-media-library';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import React, { useEffect, useRef, useState } from 'react';
+import { BackHandler } from 'react-native';
+
 import {
     ActivityIndicator,
     Alert,
@@ -43,6 +45,33 @@ export default function InvoiceScreen() {
         message: ""
     });
 
+
+    useEffect(() => {
+        // 1. Handle Hardware Back Button (Android)
+        const backAction = () => {
+            router.replace('/(tabs)/orders'); // Adjust this path to your actual Orders list path
+            return true; // Prevents the standard back action
+        };
+
+        const backHandler = BackHandler.addEventListener(
+            'hardwareBackPress',
+            backAction
+        );
+
+        // 2. Handle Header Back Button (iOS/Android Header)
+        navigation.setOptions({
+            headerLeft: () => (
+                <MaterialCommunityIcons
+                    name="arrow-left"
+                    size={24}
+                    onPress={() => router.replace('/(tabs)/orders')}
+                    style={{ marginLeft: 10 }}
+                />
+            ),
+        });
+
+        return () => backHandler.remove();
+    }, []);
 
     // Download logic
     const handleDownload = async () => {
@@ -122,13 +151,20 @@ export default function InvoiceScreen() {
                 const data = JSON.parse(orderData as string);
 
                 // --- LOGS FOR DEBUGGING ---
-                console.log("RAW INVOICE DATA:", data);
-                console.log("NAME CHECK:", data.first_name, data.last_name);
-                console.log("CONTACT CHECK:", data.contact_number);
-                console.log("PAYMENT STATUS:", data.payment_status);
-
+                // console.log("RAW INVOICE DATA:", data);
+                // console.log("NAME CHECK:", data.first_name, data.last_name);
+                // console.log("CONTACT CHECK:", data.contact_number);
+                // console.log("PAYMENT STATUS:", data.payment_status);
                 const rawItems = Array.isArray(data.items) ? data.items : [];
-
+                const formatDate = (dateString: string | null) => {
+                    if (!dateString) return null;
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('en-US', {
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric'
+                    });
+                };
                 setInvoice({
                     display_name: data.customer_full_name || `${data.first_name || ''} ${data.last_name || ''}`.trim() || "Customer Name",
                     items: rawItems,
@@ -138,7 +174,7 @@ export default function InvoiceScreen() {
                     total: Number(data.total) || 0,
                     payment_method: data.payment?.payment_method || "Cash",
                     payment_status: data.payment_status || "Unpaid",
-                    payment_date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+                    payment_date: formatDate(data.payment?.payment_date) || formatDate(data.order_date) || "N/A",
                 });
             } catch (err) {
                 console.error("Failed to parse order data", err);
