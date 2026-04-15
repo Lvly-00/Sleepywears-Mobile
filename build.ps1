@@ -1,4 +1,4 @@
-$projectRoot = "C:\Users\ly\Documents\Coding\ISPM-AppDev\Sleepywears-Mobile"
+$projectRoot = "C:\Users\ly\Documents\Mobile"
 Set-Location $projectRoot
 
 Write-Host "Starting clean build..."
