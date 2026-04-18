@@ -17,6 +17,11 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon-logo.png",
         "backgroundColor": "#02034C"
+      },
+      "splash": {
+        "image": "./assets/images/icon-logo.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#02034C"
       }
     },
     "ios": {
