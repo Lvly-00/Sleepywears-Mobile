@@ -33,18 +33,13 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
     const fixImageUrl = (url?: string | null): string | null => {
         if (!url) return null;
 
-        // If it's already a full Cloudinary URL, return it
         if (url.includes('res.cloudinary.com')) return url;
 
-        // If the URL contains 'items/' (even if it's inside a local URL), 
-        // we treat it as a Cloudinary ID.
         if (url.includes('items/')) {
-            // Extract the part starting with 'items/' 
             const cloudinaryId = url.substring(url.indexOf('items/'));
             return `https://res.cloudinary.com/dz0q8u0ia/image/upload/f_auto,q_auto/${cloudinaryId}`;
         }
 
-        // Fallback for standard http/https links
         if (url.startsWith('http://') || url.startsWith('https://')) return url;
 
         return url;
@@ -176,25 +171,30 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
             message: mode === 'create' ? "Adding Item..." : "Updating Item..."
         });
 
-        const formData = new FormData();
-
-        formData.append("name", name);
-        formData.append("price", price.replace(/[^0-9.]/g, ''));
-        formData.append("status", status);
-        formData.append("collection_id", collectionId);
-
-
-        if (uploadedImage) {
-            formData.append("image_id", uploadedImage.public_id);
-            formData.append("image_url", uploadedImage.secure_url);
-        }
-
         try {
+            const formData = new FormData();
+
+            formData.append("name", name);
+            formData.append("price", price.replace(/[^0-9.]/g, ''));
+            formData.append("status", status);
+            formData.append("collection_id", collectionId);
+
+
+            if (uploadedImage) {
+                formData.append("image_id", uploadedImage.public_id);
+                formData.append("image_url", uploadedImage.secure_url);
+            }
+
+            let response;
+
             if (mode === 'create') {
-                await api.post("/items");
+                response = await api.post("/items", formData, {
+                    headers: { "Content-Type": "multipart/form-data" }
+                });
             } else {
-                await api.post(`/items/${initialData.id}`, {
-                    _method: "PUT",
+                formData.append("_method", "PUT");
+                response = await api.post(`/items/${initialData.id}`, formData, {
+                    headers: { "Content-Type": "multipart/form-data" }
                 });
             }
 
@@ -215,9 +215,13 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
                 router.back();
             }, 1500);
 
-        } catch (error) {
+        } catch (error: any) {
             setModalState({ visible: false, loading: false, message: "" });
-            Alert.alert("Error", "Something went wrong");
+
+            console.error("Submit Error:", error.response?.data || error.message);
+
+            const serverMsg = error.response?.data?.message || "Something went wrong";
+            Alert.alert("Error", serverMsg);
         }
     };
 
