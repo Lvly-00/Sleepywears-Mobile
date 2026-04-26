@@ -1,9 +1,10 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Dimensions, Image, ImageBackground, Keyboard, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, HelperText, Text, TextInput } from 'react-native-paper';
 import SuccessModal from '../components/success-modal';
@@ -74,7 +75,6 @@ export default function LoginScreen() {
         const storedName = await SecureStore.getItemAsync('user_name');
         const registered = await SecureStore.getItemAsync('biometric_registered');
         const enabled = await SecureStore.getItemAsync('biometrics_enabled');
-
         const lockEmail = await SecureStore.getItemAsync('lock_email');
         const lockUntil = await SecureStore.getItemAsync('lock_until');
 
@@ -86,7 +86,6 @@ export default function LoginScreen() {
             await SecureStore.deleteItemAsync('last_activity');
             await SecureStore.deleteItemAsync('biometric_registered');
             await SecureStore.deleteItemAsync('biometrics_enabled');
-
             await SecureStore.deleteItemAsync('force_login');
 
             setRememberedEmail(null);
@@ -134,6 +133,17 @@ export default function LoginScreen() {
                 setRememberedEmail(storedEmail);
                 setRememberedName(storedName);
                 setEmail(storedEmail);
+                try {
+                    const res = await api.get('/user/settings');
+                    const freshName = res.data.name;
+
+                    setRememberedName(freshName);
+                    await SecureStore.setItemAsync('user_name', freshName);
+
+                } catch (err) {
+                    setRememberedName(storedName);
+                }
+
             }
         } else {
             setRememberedEmail(null);
@@ -320,9 +330,11 @@ export default function LoginScreen() {
         }
     };
 
-    useEffect(() => {
-        checkSession();
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            checkSession();
+        }, [])
+    );
 
     return (
         <View style={styles.container}>

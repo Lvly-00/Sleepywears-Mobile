@@ -1,5 +1,6 @@
 import SuccessModal from '@/src/components/success-modal';
 import api from '@/src/services/api';
+import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SettingsInput } from '../../components/settings-input';
@@ -34,6 +35,10 @@ export default function ProfileInfoScreen() {
     });
     try {
       await api.put("/user/settings", form);
+
+      await SecureStore.setItemAsync('user_name', form.name);
+      await SecureStore.setItemAsync('user_email', form.email);
+      
       setModal({
         visible: true,
         loading: false,
