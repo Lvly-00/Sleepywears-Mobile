@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Badge } from 'react-native-paper';
 
@@ -16,21 +16,39 @@ const fixImageUrl = (url?: string | null): string | null => {
 const OrderItem = React.memo(({ item, onLongPress, onPress }: any) => {
     const isPaid = item.payment_status === "Paid" || item.payment?.payment_status === "Paid";
 
-     const lastOrderItem = item.items && item.items.length > 0
+    const lastOrderItem = item.items && item.items.length > 0
         ? item.items[item.items.length - 1]
         : null;
 
 
     const displayImageUrl = fixImageUrl(item.last_item_image);
 
+    const pressLocked = useRef(false);
+    const handlePress = () => {
+        if (pressLocked.current) return;
+
+        pressLocked.current = true;
+        onPress?.(item);
+
+        setTimeout(() => {
+            pressLocked.current = false;
+        }, 400);
+    };
+
+    const handleLongPress = () => {
+        if (pressLocked.current) return;
+
+        onLongPress?.(item);
+    };
 
     return (
         <TouchableOpacity
             style={styles.card}
-            onLongPress={() => onLongPress(item)}
-            onPress={() => onPress(item)}
+            onPress={handlePress}
+            onLongPress={handleLongPress}
+            delayLongPress={300}
         >
-             <Image
+            <Image
                 source={displayImageUrl ? { uri: displayImageUrl } : { uri: 'https://via.placeholder.com/100' }}
                 style={styles.productImage}
             />

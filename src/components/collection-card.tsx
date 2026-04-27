@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Divider, Text } from 'react-native-paper';
 import { StatusBadge } from './status-badge';
@@ -8,8 +8,8 @@ interface CollectionCardProps {
     id: number;
     name: string;
     status: string;
-    available_count: number; 
-    total_sales: number;     
+    available_count: number;
+    total_sales: number;
     revenue: number;
   };
   onPress: () => void;
@@ -21,12 +21,30 @@ export const CollectionCard = ({ item, onPress, onLongPress }: CollectionCardPro
   const isActive = item.status.toLowerCase() === 'active';
   const count = item.available_count || 0;
 
+  const pressLocked = useRef(false);
+
+  const handlePress = () => {
+    if (pressLocked.current) return;
+
+    pressLocked.current = true;
+    onPress?.();
+
+    setTimeout(() => {
+      pressLocked.current = false;
+    }, 300);
+  };
+
+  const handleLongPress = () => {
+    if (pressLocked.current) return;
+    onLongPress?.(item);
+  };
 
   return (
     <View style={styles.wrapper}>
       <Pressable
-        onPress={onPress}
-        onLongPress={() => onLongPress(item)}
+        onPress={handlePress}
+        onLongPress={handleLongPress}
+        delayLongPress={300}
         style={({ pressed }) => [
           styles.cardContainer,
           pressed && { backgroundColor: '#B6CAFF' }

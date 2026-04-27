@@ -26,6 +26,8 @@ export const ItemCard = ({ item, isSelected, isSelectionMode, onPress, onLongPre
     const isSold = item.status !== 'Available';
     const imageUrl = fixImageUrl(item.image || item.image_url);
 
+
+
     return (
         <TouchableOpacity
             activeOpacity={0.9}
@@ -94,13 +96,13 @@ const styles = StyleSheet.create({
     image: { width: '100%', height: '100%', resizeMode: 'cover' },
     selectedTint: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: '#0000001a', 
+        backgroundColor: '#0000001a',
     },
     footer: {
         backgroundColor: '#D9D9D9',
         paddingHorizontal: 8,
         paddingVertical: 10,
-        height: 45, 
+        height: 45,
         justifyContent: 'center'
     },
 

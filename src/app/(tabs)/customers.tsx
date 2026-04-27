@@ -150,6 +150,31 @@ export default function CustomersScreen() {
     }
   };
 
+
+  const pressLocked = useRef(false);
+
+  const handlePress = (item: Customer) => {
+    if (pressLocked.current) return;
+
+    pressLocked.current = true;
+
+    router.push({
+      pathname: '/screens/customer-details',
+      params: { customer: JSON.stringify(item) }
+    });
+
+    setTimeout(() => {
+      pressLocked.current = false;
+    }, 400);
+  };
+
+  const handleLongPress = (item: Customer) => {
+    if (pressLocked.current) return;
+
+    setSelectedCustomer(item);
+    setModalVisible(true);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.searchContainer}>
@@ -183,11 +208,9 @@ export default function CustomersScreen() {
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={styles.item}
-                onPress={() => router.push({ pathname: '/screens/customer-details', params: { customer: JSON.stringify(item) } })}
-                onLongPress={() => {
-                  setSelectedCustomer(item);
-                  setModalVisible(true);
-                }}
+                onPress={() => handlePress(item)}
+                onLongPress={() => handleLongPress(item)}
+                delayLongPress={300}
               >
                 <Text style={styles.itemText}>{item.first_name} {item.last_name}</Text>
               </TouchableOpacity>
