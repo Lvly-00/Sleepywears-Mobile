@@ -173,6 +173,20 @@ export default function LoginScreen() {
         setEmailError('');
         setPasswordError('');
 
+        let hasError = false;
+
+        if (!email.trim()) {
+            setEmailError('Email field is required.');
+            hasError = true;
+        }
+
+        if (!password.trim()) {
+            setPasswordError('Password field is required.');
+            hasError = true;
+        }
+
+        if (hasError) return;
+
         if (!validateEmail(email)) {
             setEmailError('Invalid email address. Please enter a valid email in the format: username@example.com.');
             return;
@@ -205,10 +219,31 @@ export default function LoginScreen() {
         } catch (error: any) {
             if (error.response) {
                 const status = error.response.status;
+                const message = error.response.data?.message;
 
-                if (status === 401 || status === 403) {
-                    handleFailedAttempt?.();
+                //  EMAIL NOT FOUND
+                if (status === 404) {
+                    setEmailError(message || 'No account found with this email.');
+                    setPasswordError(''); // clear password
+                    return;
                 }
+
+                //  WRONG PASSWORD
+                if (status === 401 || status === 403) {
+                    setEmailError(''); // clear email error
+                    handleFailedAttempt();
+                    return;
+                }
+
+                //  TOO MANY ATTEMPTS
+                if (status === 429) {
+                    setPasswordError(message || 'Too many attempts. Try again later.');
+                    return;
+                }
+
+                setPasswordError(message || 'Login failed.');
+            } else {
+                setPasswordError('Network error.');
             }
         } finally {
             setLoading(false);
@@ -382,6 +417,7 @@ export default function LoginScreen() {
                                 onChangeText={(text) => {
                                     setEmail(text);
                                     if (emailError) setEmailError('');
+                                    if (passwordError) setPasswordError('');
                                 }}
                                 keyboardType='email-address'
                                 autoComplete='email'
@@ -417,6 +453,7 @@ export default function LoginScreen() {
                         editable={!loading && !isLocked}
                         onChangeText={(text) => {
                             setPassword(text);
+                            if (emailError) setEmailError('');
                             if (passwordError) setPasswordError('');
                         }}
                         mode="flat"
