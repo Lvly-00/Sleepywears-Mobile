@@ -204,8 +204,12 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
                             underlineColor="#818181"
                             activeUnderlineColor="#0A0B32"
                             textColor="#0A0B32"
-                            right={<TextInput.Icon icon="calendar" />}
-                            editable={false}
+                            right={
+                                <TextInput.Icon
+                                    icon="calendar"
+                                    onPress={() => setShowReleasePicker(true)}
+                                />
+                            } editable={false}
                         />
                     </TouchableOpacity>
 
@@ -226,8 +230,12 @@ export default function CollectionForm({ mode, initialData }: CollectionFormProp
                             underlineColor="#818181"
                             activeUnderlineColor="#0A0B32"
                             textColor="#0A0B32"
-                            right={<TextInput.Icon icon="calendar" />}
-                            editable={false}
+                            right={
+                                <TextInput.Icon
+                                    icon="calendar"
+                                    onPress={() => setShowCutOffPicker(true)}
+                                />
+                            } editable={false}
                         />
                     </TouchableOpacity>
 
