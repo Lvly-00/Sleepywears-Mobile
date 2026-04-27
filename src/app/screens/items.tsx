@@ -19,12 +19,11 @@ export default function ItemsScreen() {
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [modalState, setModalState] = useState({ visible: false, loading: false, msg: "" });
 
-    // 1. Calculate Totals (using frontend calculation so it updates instantly on delete)
     const totals = useMemo(() => {
         const totalPrice = items.reduce((sum, item) => sum + Number(item.price || 0), 0);
         return {
             capital: collectionCapital,
-            revenue: totalPrice - collectionCapital
+            revenue: Math.max(0, totalPrice)
         };
     }, [items, collectionCapital]);
 
