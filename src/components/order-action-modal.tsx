@@ -46,18 +46,7 @@ export const OrderActionModal = ({
                     <View style={styles.buttonRow}>
                         {!isPaid ? (
                             <>
-                                {/* Add Payment Button */}
-                                <TouchableOpacity
-                                    style={[styles.outlineButton, { borderColor: PAYMENT_GREEN }]}
-                                    onPress={() => {
-                                        onAddPayment();
-                                        onClose();
-                                    }}
-                                >
-                                    <Text style={[styles.outlineButtonText, { color: PAYMENT_GREEN }]}>
-                                        Add Payment
-                                    </Text>
-                                </TouchableOpacity>
+
 
                                 {/* Delete Button */}
                                 <TouchableOpacity
@@ -69,6 +58,19 @@ export const OrderActionModal = ({
                                 >
                                     <Text style={[styles.outlineButtonText, { color: DELETE_RED }]}>
                                         Delete
+                                    </Text>
+                                </TouchableOpacity>
+
+                                {/* Add Payment Button */}
+                                <TouchableOpacity
+                                    style={[styles.outlineButton, { borderColor: PAYMENT_GREEN }]}
+                                    onPress={() => {
+                                        onAddPayment();
+                                        onClose();
+                                    }}
+                                >
+                                    <Text style={[styles.outlineButtonText, { color: PAYMENT_GREEN }]}>
+                                        Add Payment
                                     </Text>
                                 </TouchableOpacity>
                             </>

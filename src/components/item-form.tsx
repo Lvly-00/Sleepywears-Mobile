@@ -160,6 +160,11 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
             isValid = false;
         }
 
+        if (uploadingImage) {
+            newErrors.image = "Please wait", "Image is still uploading.";
+            return;
+        }
+
         if (!isValid) {
             setErrors(newErrors);
             return;
@@ -345,14 +350,17 @@ export default function ItemForm({ mode, initialData, collectionId }: ItemFormPr
                         {errors.price}
                     </HelperText>
                 </View>
-
                 <Button
                     mode="contained"
                     onPress={handleSubmit}
-                    style={styles.saveButton}
+                    style={[
+                        styles.saveButton,
+                        (modalState.loading || uploadingImage) && { opacity: 0.6 }
+                    ]}
                     labelStyle={styles.buttonLabel}
                     contentStyle={styles.buttonContent}
-                    disabled={modalState.loading}>
+                    disabled={modalState.loading || uploadingImage}
+                >
                     {mode === 'create' ? "Save" : "Update"}
                 </Button>
 

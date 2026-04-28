@@ -18,14 +18,14 @@ export default function ItemsScreen() {
     const [selectedIds, setSelectedIds] = useState<Set<string | number>>(new Set());
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [modalState, setModalState] = useState({ visible: false, loading: false, msg: "" });
+    const [revenue, setRevenue] = useState(0);
 
     const totals = useMemo(() => {
-        const totalPrice = items.reduce((sum, item) => sum + Number(item.price || 0), 0);
         return {
             capital: collectionCapital,
-            revenue: Math.max(0, totalPrice)
+            revenue: revenue
         };
-    }, [items, collectionCapital]);
+    }, [collectionCapital, revenue]);
 
     const isSelectionMode = selectedIds.size > 0;
 
@@ -37,8 +37,8 @@ export default function ItemsScreen() {
 
             if (res.data && Array.isArray(res.data.items)) {
                 setItems(res.data.items);
-                // Store the capital from the collections table
                 setCollectionCapital(Number(res.data.collection_capital || 0));
+                setRevenue(Number(res.data.calculated_revenue || 0)); // ✅ USE BACKEND VALUE
             }
         } catch (err) {
             console.error('Fetch error:', err);
