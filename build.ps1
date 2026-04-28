@@ -36,3 +36,11 @@ Set-Location ..
 explorer "android\app\build\outputs\apk\release"
 
 Write-Host "Build complete!"
+
+
+// run
+// .\build.ps1
+
+// If you get script execution is disabled
+// Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+// Set-ExecutionPolicy Bypass -Scope Process
