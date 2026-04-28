@@ -21,23 +21,16 @@ export default function CustomersScreen() {
 
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sectionListRef = useRef<SectionList>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchCustomers(null, true);
-    }, [refreshKey])
-  );
 
-  const fetchCustomers = useCallback(async (cursor: string | null = null, reset = false) => {
+  const fetchCustomers = useCallback(async (cursor: string | null = null, reset = false, searchVal = "") => {
     if (cursor) setIsMoreLoading(true);
-    else setLoading(true);
-
+    else if (!reset) setLoading(true);
     try {
       const res = await api.get("/customers", {
         params: {
           cursor,
-          search: search || undefined,
+          search: searchVal || undefined,
           per_page: 20,
         },
       });
@@ -64,31 +57,35 @@ export default function CustomersScreen() {
       setRefreshing(false);
       setIsMoreLoading(false);
     }
-  }, [search]);
+  }, []);
 
   // 2. TRIGGER REFRESH ON FOCUS (Back from Edit/Create)
-  useFocusEffect(
+ useFocusEffect(
     useCallback(() => {
-      fetchCustomers(null, true);
-    }, [fetchCustomers])
+      fetchCustomers(null, true, search);
+    }, [fetchCustomers]) 
   );
+
 
 
 
   // 3. DEBOUNCED SEARCH
   useEffect(() => {
+    // Clear the list immediately to show user something is happening
+    if (search.length > 0) {
+        setCustomers([]) 
+    }
+
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
 
     searchTimeout.current = setTimeout(() => {
-      setCustomers([]);
-      setNextCursor(null);
-      fetchCustomers(null, true);
+      fetchCustomers(null, true, search);
     }, 500);
 
     return () => {
       if (searchTimeout.current) clearTimeout(searchTimeout.current);
     };
-  }, [search]);
+  }, [search, fetchCustomers]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
