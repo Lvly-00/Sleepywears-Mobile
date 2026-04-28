@@ -22,6 +22,8 @@ export default function OrdersScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isExtended, setIsExtended] = useState(true);
 
@@ -64,28 +66,30 @@ export default function OrdersScreen() {
     }
   }, [highlightId, orders]);
 
-  const fetchOrders = async (cursor: string | null = null, searchTerm: string, isRefresh = false) => {
-    if (isFetching.current) return;
+  const fetchOrders = useCallback(async (cursor: string | null = null, searchTerm: string, isRefresh = false) => {
+    if (isFetching.current && !isRefresh) return;
     isFetching.current = true;
 
-    if (!cursor) {
-      if (!isRefresh) setLoading(true);
-    } else {
-      setLoadingMore(true);
-    }
+    if (!cursor && !isRefresh) setLoading(true);
+    if (cursor) setLoadingMore(true);
 
     try {
       const res = await api.get("/orders", {
-        params: { cursor: cursor || undefined, search: searchTerm, per_page: 15 }
+        params: {
+          cursor: cursor || undefined,
+          search: searchTerm || undefined, // Send undefined if empty to avoid empty string queries
+          per_page: 15
+        }
       });
 
-      const newData = res.data.data;
+      const newData = res.data.data || [];
 
       setOrders(prev => {
         if (!cursor) return newData;
+        // Filter duplicates to be safe
         const existingIds = new Set(prev.map(o => o.id));
-        const filteredNewData = newData.filter((o: any) => !existingIds.has(o.id));
-        return [...prev, ...filteredNewData];
+        const filtered = newData.filter((o: any) => !existingIds.has(o.id));
+        return [...prev, ...filtered];
       });
 
       setNextCursor(res.data.next_cursor);
@@ -97,31 +101,44 @@ export default function OrdersScreen() {
       setLoadingMore(false);
       isFetching.current = false;
     }
-  };
-
-  useEffect(() => {
-    fetchOrders(null, search);
   }, []);
 
-  useEffect(() => {
-    if (selectedOrder) {
-      // Log the actual field we are using for the logic
-      console.log("LOGGED PAYMENT STATUS:", selectedOrder?.payment?.payment_status);
-      console.log("IS IT EQUAL TO 'paid'?", selectedOrder?.payment?.payment_status?.trim().toLowerCase() === 'paid');
-    }
-  }, [selectedOrder]);
+  // useEffect(() => {
+  //   if (selectedOrder) {
+  //     console.log("LOGGED PAYMENT STATUS:", selectedOrder?.payment?.payment_status);
+  //     console.log("IS IT EQUAL TO 'paid'?", selectedOrder?.payment?.payment_status?.trim().toLowerCase() === 'paid');
+  //   }
+  // }, [selectedOrder]);
 
   // HANDLERS
+  useEffect(() => {
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+
+    searchTimeout.current = setTimeout(() => {
+      // This runs once on mount (search="") and whenever search changes
+      fetchOrders(null, search, true);
+    }, 400);
+
+    return () => {
+      if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    };
+  }, [search, fetchOrders]);
+
+  const handleSearchChange = (text: string) => {
+    setSearch(text);
+  };
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchOrders(null, search, true);
-  }, [search]);
+  }, [search, fetchOrders]);
+
 
   const loadMore = useCallback(() => {
     if (!loadingMore && nextCursor && !isFetching.current) {
       fetchOrders(nextCursor, search);
     }
-  }, [loadingMore, nextCursor, search]);
+  }, [loadingMore, nextCursor, search, fetchOrders]);
 
   const onScroll = ({ nativeEvent }: any) => {
     const currentScrollOffset = nativeEvent.contentOffset.y;
@@ -195,7 +212,7 @@ export default function OrdersScreen() {
           <Searchbar
             placeholder="Search Order..."
             placeholderTextColor={'#7A7A7A'}
-            onChangeText={(t) => { setSearch(t); fetchOrders(null, t); }}
+            onChangeText={handleSearchChange}
             value={search}
             inputStyle={styles.searchInputText}
             style={styles.searchBar}
