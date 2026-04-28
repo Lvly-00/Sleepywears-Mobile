@@ -1,6 +1,7 @@
 import api from '@/src/services/api';
 import { Customer } from '@/src/types/customer';
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
+import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshControl, SectionList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ActivityIndicator, Searchbar } from 'react-native-paper';
@@ -21,11 +22,14 @@ export default function CustomersScreen() {
 
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sectionListRef = useRef<SectionList>(null);
+  const isFirstMount = useRef(true);
+  const lastFetchedSearch = useRef("");
 
-
-  const fetchCustomers = useCallback(async (cursor: string | null = null, reset = false, searchVal = "") => {
+  const fetchCustomers = useCallback(async (cursor: string | null = null, isRefreshing = false, searchVal = "") => {
+    // Only show the main skeleton if we aren't paginating or swiping-to-refresh
     if (cursor) setIsMoreLoading(true);
-    else if (!reset) setLoading(true);
+    else if (!isRefreshing) setLoading(true);
+
     try {
       const res = await api.get("/customers", {
         params: {
@@ -36,7 +40,6 @@ export default function CustomersScreen() {
       });
 
       const newData = res.data.data || [];
-
       const cursorUrl = res.data.next_page_url;
       let nextCursorStr = null;
 
@@ -45,11 +48,9 @@ export default function CustomersScreen() {
         nextCursorStr = urlObj.searchParams.get("cursor");
       }
 
-      setCustomers(prev =>
-        cursor && !reset ? [...prev, ...newData] : newData
-      );
-
+      setCustomers(prev => (cursor ? [...prev, ...newData] : newData));
       setNextCursor(nextCursorStr);
+      lastFetchedSearch.current = searchVal;
     } catch (err) {
       console.error("Fetch error:", err);
     } finally {
@@ -59,38 +60,43 @@ export default function CustomersScreen() {
     }
   }, []);
 
-  // 2. TRIGGER REFRESH ON FOCUS (Back from Edit/Create)
- useFocusEffect(
-    useCallback(() => {
-      fetchCustomers(null, true, search);
-    }, [fetchCustomers]) 
-  );
-
-
-
-
-  // 3. DEBOUNCED SEARCH
   useEffect(() => {
-    // Clear the list immediately to show user something is happening
-    if (search.length > 0) {
-        setCustomers([]) 
+    if (search !== lastFetchedSearch.current) {
+      if (customers.length === 0) setLoading(true);
     }
 
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
 
     searchTimeout.current = setTimeout(() => {
-      fetchCustomers(null, true, search);
+      if (search.length > 0) setCustomers([]);
+
+      fetchCustomers(null, false, search);
     }, 500);
 
     return () => {
       if (searchTimeout.current) clearTimeout(searchTimeout.current);
     };
-  }, [search, fetchCustomers]);
+  }, [search]);
+
+  const isMounted = useRef(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!isMounted.current) {
+        isMounted.current = true;
+        return;
+      }
+      fetchCustomers(null, true, search);
+    }, [search])
+  );
+
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchCustomers(null, true);
   }, [search]);
+
+
 
   const handleLoadMore = () => {
     if (nextCursor && !isMoreLoading) {

@@ -48,7 +48,8 @@
         {
           "image": "./assets/images/icon-logo.png",
           "resizeMode": "contain",
-          "backgroundColor": "#02034C"
+          "backgroundColor": "#02034C",
+          "imageWidth": 250
         }
       ],
       [
