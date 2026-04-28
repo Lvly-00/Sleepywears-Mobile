@@ -32,7 +32,7 @@ const EditCustomerScreen = () => {
     const [contact, setContact] = useState('');
     const [social, setSocial] = useState('');
     const [addresses, setAddresses] = useState<string[]>([]);
-    
+
     // UI States
     const [errors, setErrors] = useState<any>({});
     const [modalVisible, setModalVisible] = useState(false);
@@ -58,7 +58,7 @@ const EditCustomerScreen = () => {
 
         if (!firstName.trim()) newErrors.firstName = "First name is required";
         if (!lastName.trim()) newErrors.lastName = "Last name is required";
-        
+
         if (!contact.trim()) {
             newErrors.contact = "Contact number is required";
         } else if (contact.length !== 11) {
@@ -82,6 +82,10 @@ const EditCustomerScreen = () => {
     };
 
     const handleAddAddress = () => {
+        if (addresses.length >= 2) {
+            Alert.alert("Limit reached", "You can only add up to 2 addresses.");
+            return;
+        }
         setAddresses([...addresses, '']);
     };
 
@@ -135,14 +139,14 @@ const EditCustomerScreen = () => {
     const initials = (firstName.charAt(0) + lastName.charAt(0)).toUpperCase();
 
     return (
-        <KeyboardAvoidingView 
+        <KeyboardAvoidingView
             style={styles.mainContainer}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
         >
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                <ScrollView 
-                    contentContainerStyle={styles.scrollContent} 
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                 >
@@ -156,11 +160,11 @@ const EditCustomerScreen = () => {
                     {/* First Name */}
                     <View style={styles.fieldContainer}>
                         <Text style={styles.label}>First Name <Text style={styles.red}>*</Text></Text>
-                        <TextInput 
-                            style={[styles.input, errors.firstName && styles.inputError]} 
-                            value={firstName} 
-                            onChangeText={(t) => { setFirstName(t); setErrors({...errors, firstName: null}) }} 
-                            placeholder="First Name" 
+                        <TextInput
+                            style={[styles.input, errors.firstName && styles.inputError]}
+                            value={firstName}
+                            onChangeText={(t) => { setFirstName(t); setErrors({ ...errors, firstName: null }) }}
+                            placeholder="First Name"
                         />
                         <HelperText type="error" visible={!!errors.firstName} style={styles.helper}>
                             {errors.firstName}
@@ -170,11 +174,11 @@ const EditCustomerScreen = () => {
                     {/* Last Name */}
                     <View style={styles.fieldContainer}>
                         <Text style={styles.label}>Last Name <Text style={styles.red}>*</Text></Text>
-                        <TextInput 
-                            style={[styles.input, errors.lastName && styles.inputError]} 
-                            value={lastName} 
-                            onChangeText={(t) => { setLastName(t); setErrors({...errors, lastName: null}) }} 
-                            placeholder="Last Name" 
+                        <TextInput
+                            style={[styles.input, errors.lastName && styles.inputError]}
+                            value={lastName}
+                            onChangeText={(t) => { setLastName(t); setErrors({ ...errors, lastName: null }) }}
+                            placeholder="Last Name"
                         />
                         <HelperText type="error" visible={!!errors.lastName} style={styles.helper}>
                             {errors.lastName}
@@ -184,17 +188,17 @@ const EditCustomerScreen = () => {
                     {/* Contact Number */}
                     <View style={styles.fieldContainer}>
                         <Text style={styles.label}>Contact Number <Text style={styles.red}>*</Text></Text>
-                        <TextInput 
-                            style={[styles.input, errors.contact && styles.inputError]} 
-                            value={contact} 
-                            onChangeText={(t) => { 
+                        <TextInput
+                            style={[styles.input, errors.contact && styles.inputError]}
+                            value={contact}
+                            onChangeText={(t) => {
                                 const filtered = t.replace(/[^0-9]/g, '');
                                 if (filtered.length <= 11) {
                                     setContact(filtered);
-                                    setErrors({...errors, contact: null});
+                                    setErrors({ ...errors, contact: null });
                                 }
-                            }} 
-                            keyboardType="phone-pad" 
+                            }}
+                            keyboardType="phone-pad"
                             placeholder="09XXXXXXXXX"
                         />
                         <HelperText type="error" visible={!!errors.contact} style={styles.helper}>
@@ -205,11 +209,11 @@ const EditCustomerScreen = () => {
                     {/* Social Media */}
                     <View style={styles.fieldContainer}>
                         <Text style={styles.label}>Social Media Link <Text style={styles.red}>*</Text></Text>
-                        <TextInput 
-                            style={[styles.input, errors.social && styles.inputError]} 
-                            value={social} 
-                            onChangeText={(t) => { setSocial(t); setErrors({...errors, social: null}) }} 
-                            autoCapitalize="none" 
+                        <TextInput
+                            style={[styles.input, errors.social && styles.inputError]}
+                            value={social}
+                            onChangeText={(t) => { setSocial(t); setErrors({ ...errors, social: null }) }}
+                            autoCapitalize="none"
                             placeholder="https://..."
                         />
                         <HelperText type="error" visible={!!errors.social} style={styles.helper}>
@@ -234,10 +238,12 @@ const EditCustomerScreen = () => {
                         </View>
                     ))}
 
-                    <TouchableOpacity style={styles.addAddressBtn} onPress={handleAddAddress}>
-                        <Ionicons name="add-circle" size={32} color="#050A30" />
-                        <Text style={styles.addAddressText}>add address</Text>
-                    </TouchableOpacity>
+                    {addresses.length < 2 && (
+                        <TouchableOpacity style={styles.addAddressBtn} onPress={handleAddAddress}>
+                            <Ionicons name="add-circle" size={32} color="#050A30" />
+                            <Text style={styles.addAddressText}>add address</Text>
+                        </TouchableOpacity>
+                    )}
 
                     <TouchableOpacity style={styles.btnUpdate} onPress={handleUpdate} disabled={isUpdating}>
                         <Text style={styles.btnText}>{isUpdating ? "Updating..." : "Update"}</Text>
